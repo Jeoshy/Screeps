@@ -43,7 +43,6 @@ Object.defineProperty(Source.prototype, "harvestSpots", {
 
             let tiles = this.room.lookAtArea(y - 1, x - 1, y + 1, x + 1, true)
             let harvestSpotOptimizer = this.room.harvestSpotOptimizer
-            console.log(harvestSpotOptimizer)
             tiles.forEach((tile) => {
                 tile.distance = harvestSpotOptimizer.getRangeTo(tile.x, tile.y)
             })
@@ -56,8 +55,16 @@ Object.defineProperty(Source.prototype, "harvestSpots", {
             this.memory.harvestSpots = this.memory.harvestSpots.slice(0, -1)
         }
 
-        return this.memory.harvestSpots
+        return this.memory.harvestSpots.split("s")
     },
     enumerable: true,
     configurable: true
 })
+
+Source.prototype.registerCreep = function (creepID) {
+    this.memory.creeps.push(creepID)
+}
+
+Source.prototype.removeCreep = function (creepID) {
+    this.memory.creeps.pop(creepID)
+}
