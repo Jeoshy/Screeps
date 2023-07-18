@@ -4,13 +4,18 @@
 
 function contract (roomName) {
     this.roomName = roomName
+    this.occupied = false
 }
 
 let harvester = function (roomName) {
     contract.call(this, roomName)
-    this.roleRequirements = ["harvester"]
+    this.type = "harvester"
 
     return this
+}
+
+harvester.prototype.hello = function () {
+    console.log("hello")
 }
 
 harvester.prototype.requirements = function (creep) {
@@ -18,8 +23,11 @@ harvester.prototype.requirements = function (creep) {
         return false
     }
 
-    if (!this.roleRequirements.includes(creep.memory.role)) {
-        return false
+    for (let part of creep.body) {
+        if (part.type !== WORK) {
+            console.log(`Rejected {creep.name}`)
+            return false
+        }
     }
 
     return true
