@@ -72,6 +72,14 @@ Object.defineProperty(Room.prototype, "freeHarvestSpot", {
     configurable: true
 })
 
+Room.prototype.addTask = function (task) {
+    if (!this.memory.tasks) {
+        this.memory.tasks = []
+    }
+
+    this.memory.tasks.push(task)
+}
+
 Room.prototype.addContract = function (contract) {
     if (!Memory.contracts) {
         Memory.contracts = {}
