@@ -1,5 +1,9 @@
 let getContract = require("Contract")
 
+module.exports = {
+    harvester: require("harvester")
+}
+
 Object.defineProperty(Creep.prototype, "role", {
     get: function () {
         if (!this.memory.role) {
@@ -10,35 +14,6 @@ Object.defineProperty(Creep.prototype, "role", {
     },
     set: function (role) {
         this.memory.role = role
-    },
-    enumerable: false,
-    configurable: true
-})
-
-Object.defineProperty(Creep.prototype, "contract", {
-    get: function () {
-        if (!this.memory.contractID) {
-            for (let contractID in Memory.contracts) {
-                let contractMemory = Memory.contracts[contractID]
-                if (contractMemory.occupied) {
-                    continue
-                }
-
-                let contract = new getContract[contractMemory.type](contractMemory.roomName)
-
-                if (contract.requirements(this)) {
-                    contractMemory.occupied = true
-                    this.memory.contractID = contractID
-                    break;
-                }
-            }
-
-            if (!this.memory.contractID) {
-                return undefined
-            }
-        }
-
-        return Memory.contracts[this.memory.contractID]
     },
     enumerable: false,
     configurable: true

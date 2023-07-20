@@ -1,4 +1,4 @@
-let contract = require("Contract")
+let role = require("creep")
 
 Object.defineProperty(Room.prototype, 'sources', {
     get: function() {
@@ -46,7 +46,7 @@ Object.defineProperty(Room.prototype, "harvestSpots", {
                     harvestSpots[h] = false
 
                     // Creates contracts for the harvestSpots
-                    this.addContract(new contract.harvester(this.name))
+                    this.addContract(new role.harvester.contract(this.name))
                 })
             })
 
@@ -54,6 +54,19 @@ Object.defineProperty(Room.prototype, "harvestSpots", {
         }
 
         return this.memory.harvestSpots
+    },
+    enumerable: false,
+    configurable: true
+})
+
+Object.defineProperty(Room.prototype, "freeHarvestSpot", {
+    get: function () {
+        for (let harvestSpot in this.harvestSpots) {
+            if (!this.harvestSpots[harvestSpot]) {
+                this.harvestSpots[harvestSpot] = true
+                return harvestSpot
+            }
+        }
     },
     enumerable: false,
     configurable: true

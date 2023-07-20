@@ -43,6 +43,8 @@ Object.defineProperty(Source.prototype, "harvestSpots", {
 
             let tiles = this.room.lookAtArea(y - 1, x - 1, y + 1, x + 1, true)
             let harvestSpotOptimizer = this.room.harvestSpotOptimizer
+            tiles = tiles.filter((tile) => (tile.type === "terrain" && tile.terrain !== "wall"))
+
             tiles.forEach((tile) => {
                 tile.distance = harvestSpotOptimizer.getRangeTo(tile.x, tile.y)
             })
