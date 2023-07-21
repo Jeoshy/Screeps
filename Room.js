@@ -1,16 +1,58 @@
 let role = require("creep")
 
-Object.defineProperty(Room.prototype, 'sources', {
-    get: function() {
-        if (!this.memory.sources) {
-            if (!this._sources) {
-                this._sources = this.find(FIND_SOURCES).map(s => s.id);
+let testQueue = [
+    role.harvester.create(),
+    role.carrier.create()
+]
+
+// TODO: Queue is dynamic and static
+// TODO: Behind the scenes queue is dead or alive lists
+// TODO: Creeps can be queued beforehand
+// TODO: RECODE THE NAÏVE APPROACH
+// TODO: Each creep should have a value function for prioritization of spawning
+Object.defineProperty(Room.prototype, "queue", {
+    get: function () {
+        if (!this._queue) {
+            if (!this.memory.queue) {
+                this.memory.queue = testQueue
             }
 
-            this.memory.sources = this._sources
+            this._queue = this.memory.queue.map((c) => [role[c[0]], c[1]])
         }
 
-        return this.memory.sources.map(s_id => Game.getObjectById(s_id));
+        return this._queue
+    },
+    enumerable: false,
+    configurable: true
+})
+
+Object.defineProperty(Room.prototype, "spawns", {
+    get: function () {
+        if (!this._spawns) {
+            if (!this.memory.spawns) {
+                this.memory.spawns = this.find(FIND_MY_SPAWNS).map(s => s.id)
+            }
+
+            this._spawns = this.memory.spawns.map(s_id => Game.getObjectById(s_id))
+        }
+
+        return this._spawns
+    },
+    enumerable: false,
+    configurable: true
+})
+
+Object.defineProperty(Room.prototype, 'sources', {
+    get: function() {
+        if (!this._sources) {
+            if (!this.memory.sources) {
+                this.memory.sources = this.find(FIND_SOURCES).map(s => s.id);
+            }
+
+            this._sources = this.memory.sources.map(s_id => Game.getObjectById(s_id))
+        }
+
+        return this._sources;
     },
     set: function(newValue) {
         console.log("Hah that is funny. You don't want to set this to another value ;)")
@@ -59,18 +101,24 @@ Object.defineProperty(Room.prototype, "harvestSpots", {
     configurable: true
 })
 
-Object.defineProperty(Room.prototype, "freeHarvestSpot", {
-    get: function () {
-        for (let harvestSpot in this.harvestSpots) {
-            if (!this.harvestSpots[harvestSpot]) {
-                this.harvestSpots[harvestSpot] = true
-                return harvestSpot
-            }
+Room.prototype.freeHarvestSpot = function (creepName) {
+    for (let harvestSpot in this.harvestSpots) {
+        if (!this.harvestSpots[harvestSpot]) {
+            this.harvestSpots[harvestSpot] = creepName
+            return harvestSpot
         }
-    },
-    enumerable: false,
-    configurable: true
-})
+    }
+}
+
+Room.prototype.freeTask = function () {
+    for (let freeTask in this.memory.tasks) {
+        let task = this.memory.tasks[freeTask]
+        if (!task.performer) {
+            this.memory.tasks.pop[freeTask]
+            return task
+        }
+    }
+}
 
 Room.prototype.addTask = function (task) {
     if (!this.memory.tasks) {

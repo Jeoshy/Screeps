@@ -2,8 +2,8 @@
 // Tasks have requirements, such as contract types
 
 function pull (creep) {
-    global.contract.call(this, creep.id)
-    this.temporary = true
+    this.contractor = creep.id
+    this.performer = undefined
     this.role = ["carrier", "puller"]
 }
 

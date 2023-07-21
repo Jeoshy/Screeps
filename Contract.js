@@ -10,3 +10,15 @@ global.contract = function (roomName) {
     this.temporary = false
     this.NEPH = 0
 }
+
+global.create = function (role) {
+    if (!Memory.creepCounts) {
+        Memory.creepCounts = {}
+    }
+    if (!Memory.creepCounts.harvester) {
+        Memory.creepCounts.harvester = 0
+    }
+
+    Memory.creepCounts.harvester += 1
+    return [role, `${role}${Memory.creepCounts.harvester}`]
+}

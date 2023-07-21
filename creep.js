@@ -1,7 +1,8 @@
 let getContract = require("Contract")
 
 module.exports = {
-    harvester: require("harvester")
+    harvester: require("harvester"),
+    carrier: require("carrier")
 }
 
 Object.defineProperty(Creep.prototype, "role", {
