@@ -77,6 +77,33 @@ Object.defineProperty(Room.prototype, "harvestSpotOptimizer", {
     configurable: true
 })
 
+Object.defineProperty(Room.prototype, "spotToSource", {
+    get: function () {
+        if (!this._spotToSource) {
+            if (!this.memory.spotToSource) {
+                this.memory.spotToSource = {}
+                this.sources.forEach((source) => {
+                    let harvestSpots = source.harvestSpots
+                    harvestSpots.length = 3
+                    harvestSpots.forEach((h) => {
+                        this.memory.spotToSource[h] = source.id
+                    })
+                })
+            }
+
+            this._spotToSource = {}
+            for (let index in this.memory.spotToSource) {
+                let id = this.memory.spotToSource[index]
+                this._spotToSource[index] = Game.getObjectById(id)
+            }
+        }
+
+        return this._spotToSource
+    },
+    enumerable: false,
+    configurable: true
+})
+
 Object.defineProperty(Room.prototype, "harvestSpots", {
     get: function () {
         if (!this.memory.harvestSpots) {
@@ -112,9 +139,9 @@ Room.prototype.freeHarvestSpot = function (creepName) {
 
 Room.prototype.freeTask = function () {
     for (let freeTask in this.memory.tasks) {
-        let task = this.memory.tasks[freeTask]
+        let task = Object.assign({}, this.memory.tasks[freeTask])
         if (!task.performer) {
-            this.memory.tasks.pop[freeTask]
+            this.memory.tasks.pop(freeTask)
             return task
         }
     }

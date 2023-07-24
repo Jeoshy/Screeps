@@ -1,6 +1,6 @@
 module.exports = {
     creepMODES: {
-        DEFAULT: 1,
+        DEFAULT: 0,
         PULL: 1
     }
 }

@@ -1,9 +1,14 @@
 // Tasks are local, they are bound to the room
 // Tasks have requirements, such as contract types
 
-function pull (creep) {
-    this.contractor = creep.id
+const {creepMODES} = require("./constants");
+
+function pull (id, spot, range) {
+    this.contractor = id
     this.performer = undefined
+    this.type = creepMODES.PULL
+    this.spot = spot
+    this.range = range
     this.role = ["carrier", "puller"]
 }
 
