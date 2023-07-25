@@ -13,11 +13,13 @@ module.exports = {
         return {
             role: this.role,
             harvestSpot: room.freeHarvestSpot(name),
+            roomName: room.name,
+            level: room.controller.level
         }
     },
     run: function (creep) {
         if (!creep.memory.harvestSpot) {
-            creep.memory.harvestSpot = creep.room.freeHarvestSpot
+            creep.memory.harvestSpot = creep.room.freeHarvestSpot(creep.name)
         }
 
         if (!creep.memory.harvestSpot) {
@@ -25,6 +27,7 @@ module.exports = {
         }
 
         if (creep.memory.moved) {
+            // TODO: IDLE HARVEST WHEN SOURCE IS EMPTY
             creep.harvest(creep.room.spotToSource[creep.memory.harvestSpot])
             return
         }

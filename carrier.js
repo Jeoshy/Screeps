@@ -6,6 +6,7 @@ const {pull} = require("./task");
 module.exports = {
     body: [CARRY, MOVE],
     role: "carrier",
+    respawn: true,
 
     contract: function (roomName) {
         global.contract.call(this, roomName)
@@ -15,11 +16,13 @@ module.exports = {
         return {
             role: this.role,
             task: room.freeTask(),
-            mode: creepMODES.PULL
+            mode: creepMODES.PULL,
+            roomName: room.name,
+            level: room.controller.level
         }
     },
     run: function (creep) {
-        if (!creep.memory.task) {
+        if (!creep.memory.task && !creep.memory.full) {
             creep.memory.task = creep.room.freeTask(creep.name)
         }
 
@@ -38,7 +41,9 @@ module.exports = {
                 let pulledCreep = Game.getObjectById(pulledCreepID)
 
                 if (!pulledCreep) {
+                    console.log(`${creep.name} reports: Pulled creep doesn't exist`)
                     creep.done()
+                    break;
                 }
 
                 if (attached) {
@@ -80,10 +85,38 @@ module.exports = {
 
                 break;
             case creepMODES.DEFAULT:
+                if (creep.memory.full) {
+                    // TODO: NEEDS TO BE DYNAMIC
+                    let target = creep.room.spawns[0]
+                    if (creep.transfer(target, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+                        creep.moveTo(target)
+                        break;
+                    }
 
-                break;
-            case undefined:
-                creep.memory.mode = creepMODES.PULL
+                    if (creep.store[RESOURCE_ENERGY] === 0) {
+                        creep.memory.full = false
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                let energySpot = creep.room.energySpot(creep)
+                if (!energySpot) {
+                    break;
+                }
+
+                if (creep[creep.memory.method](energySpot, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+                    creep.moveTo(energySpot)
+                    break;
+                }
+
+                if (creep.store[RESOURCE_ENERGY] > 0) {
+                    creep.memory.full = true
+                    this.run(creep)
+                }
+
                 break;
         }
     },

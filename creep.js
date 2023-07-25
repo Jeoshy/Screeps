@@ -2,7 +2,23 @@ let getContract = require("Contract")
 
 module.exports = {
     harvester: require("harvester"),
-    carrier: require("carrier")
+    carrier: require("carrier"),
+    dead: function (creep) {
+        console.log(`${creep.name} died`)
+        let room = Game.rooms[creep.roomName]
+
+        if (!room) {
+            return OK
+        }
+
+        if (room.controller.level === creep.level) {
+            room.requestCreeps([
+                this[creep.role].create()
+            ])
+        }
+
+        return OK
+    }
 }
 
 Object.defineProperty(Creep.prototype, "role", {
@@ -33,4 +49,3 @@ Creep.prototype.done = function () {
     this.memory.task = undefined
 }
 
-Creep.prototype

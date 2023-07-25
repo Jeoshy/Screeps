@@ -1,26 +1,41 @@
-let role = require("creep")
+var role = require("creep")
+const {harvester} = require("./creep");
 
-let testQueue = [
-    role.harvester.create(),
-    role.carrier.create()
-]
 
-// TODO: Queue is dynamic and static
-// TODO: Behind the scenes queue is dead or alive lists
-// TODO: Creeps can be queued beforehand
-// TODO: RECODE THE NAÏVE APPROACH
-// TODO: Each creep should have a value function for prioritization of spawning
+Object.defineProperty(Room.prototype, "creeps", {
+    get: function () {
+        let list = []
+        switch(this.memory.level) {
+            case(1):
+                for (let h in this.harvestSpots) {
+                    list = list.concat([
+                        role.harvester.create(),
+                        role.carrier.create(),
+                    ])
+                }
+
+                return list
+            case(2):
+                for (let h in this.harvestSpots) {
+                    list.concat([
+                        role.harvester.create(),
+                        role.carrier.create(),
+                    ])
+                }
+
+                return list
+        }
+    },
+    configurable: true
+})
+
 Object.defineProperty(Room.prototype, "queue", {
     get: function () {
-        if (!this._queue) {
-            if (!this.memory.queue) {
-                this.memory.queue = testQueue
-            }
-
-            this._queue = this.memory.queue.map((c) => [role[c[0]], c[1]])
+        if (!this.memory.queue) {
+            this.memory.queue = []
         }
 
-        return this._queue
+        return this.memory.queue
     },
     enumerable: false,
     configurable: true
@@ -111,13 +126,14 @@ Object.defineProperty(Room.prototype, "harvestSpots", {
             this.sources.forEach((source) => {
                 let hs = source.harvestSpots
                 hs.length = 3
+
+                // TODO: FROM XXXOOO to XOXOXO
                 hs.forEach((h) => {
                     harvestSpots[h] = false
-
-                    // Creates contracts for the harvestSpots
-                    this.addContract(new role.harvester.contract(this.name))
                 })
             })
+
+            // TODO: sort harvestSpots based on distance
 
             this.memory.harvestSpots = harvestSpots
         }
@@ -128,6 +144,36 @@ Object.defineProperty(Room.prototype, "harvestSpots", {
     configurable: true
 })
 
+Room.prototype.energySpot = function (creep) {
+    if (!this.accessNumber) {
+        this.accessNumber = 0
+    }
+
+    if (!this.energySpots) {
+        this.energySpots = this.find(FIND_DROPPED_RESOURCES)
+        this.ENERGYDROPPED = this.energySpots.length
+        for (let h in this.harvestSpots) {
+            let [x, y] = h.split("x")
+            let found = this.lookForAt(LOOK_STRUCTURES, x, y)
+            this.energySpots.push(found[0])
+        }
+    }
+
+    if (this.ENERGYDROPPED > this.accessNumber) {
+        creep.memory.method = "pickup"
+    }
+    else
+    {
+        creep.memory.method = "withdraw"
+    }
+
+    return this.energySpots[this.accessNumber]
+
+    if (this.energySpots.length > this.accessNumber) {
+        this.accessNumber += 1
+    }
+}
+
 Room.prototype.freeHarvestSpot = function (creepName) {
     for (let harvestSpot in this.harvestSpots) {
         if (!this.harvestSpots[harvestSpot]) {
@@ -135,6 +181,18 @@ Room.prototype.freeHarvestSpot = function (creepName) {
             return harvestSpot
         }
     }
+
+    if (!this.checkDead) {
+        this.checkDead = true
+        for (let harvestSpot in this.harvestSpots) {
+            if (!Game.creeps[this.harvestSpots[harvestSpot]]) {
+                this.harvestSpots[harvestSpot] = creepName
+                return harvestSpot
+            }
+        }
+    }
+
+    return undefined
 }
 
 Room.prototype.freeTask = function () {
@@ -163,5 +221,35 @@ Room.prototype.addContract = function (contract) {
 
     Memory.contractTracker += 1
     Memory.contracts[Memory.contractTracker] = contract
+}
+
+Room.prototype.getCreep = function () {
+    // Get the last one
+    let [creep, name] = this.memory.queue[this.memory.queue.length - 1]
+
+    return [role[creep], name]
+}
+
+Room.prototype.removeLastCreep = function () {
+    // Pop the last one
+    this.memory.queue.pop()
+}
+
+Room.prototype.requestCreeps = function (creepArray) {
+    // Extend array
+    this.memory.queue = this.queue.concat(creepArray)
+
+    // TODO: Sort from least important to most
+
+
+}
+
+Room.prototype.checkLevel = function () {
+    if (this.controller.level !== this.memory.level) {
+        this.memory.level = this.controller.level
+        return true
+    }
+
+    return false
 }
 

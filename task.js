@@ -4,6 +4,7 @@
 const {creepMODES} = require("./constants");
 
 function pull (id, spot, range) {
+    console.log(`New task created by ${id} - ${Game.getObjectById(id).name}`)
     this.contractor = id
     this.performer = undefined
     this.type = creepMODES.PULL
