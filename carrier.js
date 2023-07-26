@@ -102,8 +102,14 @@ module.exports = {
                     }
                 }
 
-                let energySpot = creep.room.energySpot(creep)
+                if (!creep.memory.energySpot) {
+                    creep.memory.energySpot = creep.room.energySpot(creep).id
+                }
+                let energySpot = Game.getObjectById(creep.memory.energySpot)
+                console.log(energySpot)
+
                 if (!energySpot) {
+                    creep.memory.energySpot = undefined
                     break;
                 }
 
@@ -114,6 +120,7 @@ module.exports = {
 
                 if (creep.store[RESOURCE_ENERGY] > 0) {
                     creep.memory.full = true
+                    creep.memory.energySpot = undefined
                     this.run(creep)
                 }
 

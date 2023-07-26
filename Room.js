@@ -1,7 +1,6 @@
 var role = require("creep")
 const {harvester} = require("./creep");
 
-
 Object.defineProperty(Room.prototype, "creeps", {
     get: function () {
         let list = []
@@ -133,33 +132,111 @@ Object.defineProperty(Room.prototype, "harvestSpots", {
                 })
             })
 
-            // TODO: sort harvestSpots based on distance
-
             this.memory.harvestSpots = harvestSpots
         }
 
         return this.memory.harvestSpots
     },
+    configurable: true,
+    enumerable: false
+})
+
+Object.defineProperty(Room.prototype, "upgradeSpots", {
+    get: function () {
+        if (!this._upgradeSpots) {
+            if (!this.memory.upgradeSpots) {
+                this.memory.upgradeSpots = {}
+                let numberOfDroppoints = 2
+                let upgradeSpots = 5
+                let controller = this.controller
+
+                this.lookForAtTarget(LOOK_TERRAIN, controller, 2, true)
+
+                let droppoints = this.lookForAtTarget(LOOK_TERRAIN, controller.pos, 2, true)
+                droppoints = droppoints.filter((droppoint) => (droppoint.terrain !== "wall"))
+
+                droppoints = droppoints.filter((droppoint) => {
+                    let pos = this.getPositionAt(droppoint.x, droppoint.y)
+                    let tiles = this.lookForAtTarget(LOOK_TERRAIN, pos, 1, true)
+                    droppoint.tiles = tiles
+                    return tiles.filter((tile) => tile.terrain !== "wall").length === 9
+                })
+
+                droppoints.forEach((droppoint) => {
+                    droppoint.distance = controller.pos.getRangeTo(droppoint.x, droppoint.y)
+                })
+
+                droppoints.sort((a, b) => a.distance - b.distance)
+
+                let x = 0
+                let y = 0
+                droppoints = droppoints.filter((droppoint) => {
+                    let pos = this.getPositionAt(x, y)
+
+                    if (pos.inRangeTo(droppoint.x, droppoint.y, 3)) {
+                        return false
+                    }
+                    x = droppoint.x
+                    y = droppoint.y
+                    return true
+                })
+                droppoints.length = numberOfDroppoints
+
+                droppoints.forEach((droppoint) => {
+
+                    droppoint.tiles.forEach((tile) => {
+                        tile.distance = controller.pos.getRangeTo(tile.x, tile.y)
+                    })
+
+                    droppoint.tiles.sort((a, b) => a.distance - b.distance)
+
+                    droppoint.tiles.length = upgradeSpots
+
+                    let x = droppoint.x
+                    let y = droppoint.y
+                    let pos = this.getPositionAt(x, y)
+                    Game.map.visual.circle(pos)
+
+                    this.memory.upgradeSpots[`${x}x${y}`] = droppoint.tiles.reduce((accumulator, tile) => accumulator + `${tile.x}x${tile.y}s`, "")
+                })
+            }
+        }
+
+        return this._upgradeSpots
+    },
     enumerable: false,
     configurable: true
 })
 
+Room.prototype.lookForAtTarget = function (LOOK_CONSTANT, pos, range, asArray) {
+    let x = pos.x
+    let y = pos.y
+
+    return this.lookForAtArea(LOOK_CONSTANT, y - range, x - range, y + range, x + range, asArray)
+}
+
+Room.prototype.hello = function () {
+    console.log("hello")
+}
+
 Room.prototype.energySpot = function (creep) {
-    if (!this.accessNumber) {
-        this.accessNumber = 0
-    }
-
     if (!this.energySpots) {
-        this.energySpots = this.find(FIND_DROPPED_RESOURCES)
+        this.energySpots = []
+        // for (let h in this.harvestSpots) {
+        //     let [x, y] = h.split("x")
+        //     let found = this.lookForAt(LOOK_STRUCTURES, x, y)
+        //
+        //     this.energySpots.push(found[0])
+        // }
         this.ENERGYDROPPED = this.energySpots.length
-        for (let h in this.harvestSpots) {
-            let [x, y] = h.split("x")
-            let found = this.lookForAt(LOOK_STRUCTURES, x, y)
-            this.energySpots.push(found[0])
-        }
+        this.energySpots = this.energySpots.concat(this.find(FIND_DROPPED_RESOURCES))
     }
 
-    if (this.ENERGYDROPPED > this.accessNumber) {
+    if (!this.accessNumber === undefined) {
+        this.accessNumber = this.energySpots.length
+    }
+
+    if (this.ENERGYDROPPED <= this.accessNumber) {
         creep.memory.method = "pickup"
     }
     else
@@ -167,11 +244,15 @@ Room.prototype.energySpot = function (creep) {
         creep.memory.method = "withdraw"
     }
 
-    return this.energySpots[this.accessNumber]
-
-    if (this.energySpots.length > this.accessNumber) {
-        this.accessNumber += 1
+    if (this.accessNumber > 0) {
+        this.accessNumber -= 1
     }
+    else
+    {
+        this.accessNumber = this.energySpots.length -1
+    }
+
+    return this.energySpots[this.accessNumber]
 }
 
 Room.prototype.freeHarvestSpot = function (creepName) {
