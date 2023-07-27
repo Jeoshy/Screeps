@@ -17,6 +17,9 @@ module.exports = {
             level: room.controller.level
         }
     },
+    debug: function () {
+
+    },
     run: function (creep) {
         if (!creep.memory.harvestSpot) {
             creep.memory.harvestSpot = creep.room.freeHarvestSpot(creep.name)

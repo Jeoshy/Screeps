@@ -21,6 +21,12 @@ module.exports = {
             level: room.controller.level
         }
     },
+    debug: function (creep) {
+        global.debugtext(creep.memory.method, creep.pos)
+
+        let target = Game.getObjectById(creep.memory.energySpot)
+        target ? global.debugline(creep.pos, target.pos, {lineStyle: "dashed"}) : false
+    },
     run: function (creep) {
         if (!creep.memory.task && !creep.memory.full) {
             creep.memory.task = creep.room.freeTask(creep.name)
@@ -36,6 +42,9 @@ module.exports = {
 
         switch(creep.memory.mode) {
             case creepMODES.PULL:
+                // TODO: MAKE MORE ELEGANT DROP THINGY
+                creep.drop(RESOURCE_ENERGY)
+
                 // TODO: make system for paths be stored in a string and parsed to creep
                 let {contractor: pulledCreepID, attached: attached, spot: spot, range: range} = creep.memory.task
                 let pulledCreep = Game.getObjectById(pulledCreepID)
@@ -106,7 +115,6 @@ module.exports = {
                     creep.memory.energySpot = creep.room.energySpot(creep)
                 }
                 let energySpot = Game.getObjectById(creep.memory.energySpot)
-                console.log(energySpot)
 
                 if (!energySpot) {
                     creep.memory.energySpot = undefined

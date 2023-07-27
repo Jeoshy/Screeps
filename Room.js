@@ -221,20 +221,16 @@ Object.defineProperty(Room.prototype, "upgradeSpots", {
                 [x-2, y+2],[x-1, y+2],[x, y+2],[x+1, y+2],[x+2, y+2],
             ].map((pos) => this.getPositionAt(pos[0], pos[1]))
 
-            coordinates.forEach((pos) => Game.map.visual.circle(pos))
+
+            global.debugMODE ? coordinates.forEach((pos) => Game.map.visual.circle(pos, {fill: "#ff0000"})) : false
 
             let terrain = this.getTerrain()
             coordinates = coordinates.filter((pos) => terrain.get(pos.x, pos.y) !== TERRAIN_MASK_WALL)
+
+            global.debugMODE ? coordinates.forEach((pos) => Game.map.visual.circle(pos)) : false
+
             let spawn = this.spawns[0]
             coordinates.sort((a, b) => a.getRangeTo(spawn) - b.getRangeTo(spawn))
-
-            // coordinates.forEach((pos) => {
-            //     let tiles = this.lookForAtTarget(LOOK_TERRAIN, pos, 1, true)
-            //     if (tiles.filter((tile) => tile.terrain !== "wall").length === 9) {
-            //         Game.map.visual.circle(pos, {fill: "#008000"})
-            //         coordinates = coordinates.filter((pos2) => pos.getRangeTo(pos2) > 1 || pos.getRangeTo(pos2) === 0)
-            //     }
-            // })
 
             let droppoints = []
             coordinates.forEach((pos) => {
@@ -245,7 +241,7 @@ Object.defineProperty(Room.prototype, "upgradeSpots", {
                     &&
                     droppoints.filter((droppoint) => tiles.filter((tile) => droppoint.getRangeTo(tile.x, tile.y) === 0).length > 0).length === 0
                 ) {
-                    Game.map.visual.circle(pos, {fill: "#008000"})
+                    global.debugcircle(pos, {fill: "#008000", opacity: 1})
                     droppoints.push(pos)
                 }
 
@@ -263,10 +259,6 @@ Room.prototype.lookForAtTarget = function (LOOK_CONSTANT, pos, range, asArray) {
     return this.lookForAtArea(LOOK_CONSTANT, y - range, x - range, y + range, x + range, asArray)
 }
 
-Room.prototype.hello = function () {
-    console.log("hello")
-}
-
 Room.prototype.energySpot = function (creep) {
     if (!this.energySpots) {
         this.energySpots = []
@@ -280,11 +272,11 @@ Room.prototype.energySpot = function (creep) {
         this.energySpots = this.energySpots.concat(this.find(FIND_DROPPED_RESOURCES))
     }
 
-    if (!this.accessNumber === undefined) {
-        this.accessNumber = this.energySpots.length
+    if (this.memory.accesNumber === undefined) {
+        this.memory.accesNumber = this.energySpots.length
     }
 
-    if (this.ENERGYDROPPED <= this.accessNumber) {
+    if (this.ENERGYDROPPED <= this.memory.accesNumber) {
         creep.memory.method = "pickup"
     }
     else
@@ -292,15 +284,15 @@ Room.prototype.energySpot = function (creep) {
         creep.memory.method = "withdraw"
     }
 
-    if (this.accessNumber > 0) {
-        this.accessNumber -= 1
+    if (this.memory.accesNumber > 0) {
+        this.memory.accesNumber -= 1
     }
     else
     {
-        this.accessNumber = this.energySpots.length -1
+        this.memory.accesNumber = this.energySpots.length -1
     }
 
-    let energySpot = this.energySpots[this.accessNumber]
+    let energySpot = this.energySpots[this.memory.accesNumber]
     if (!energySpot) {
         return undefined
     }
