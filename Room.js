@@ -141,68 +141,116 @@ Object.defineProperty(Room.prototype, "harvestSpots", {
     enumerable: false
 })
 
+// Object.defineProperty(Room.prototype, "upgradeSpots", {
+//     get: function () {
+//         if (!this._upgradeSpots) {
+//             if (!this.memory.upgradeSpots) {
+//                 this.memory.upgradeSpots = {}
+//                 let numberOfDroppoints = 2
+//                 let upgradeSpots = 5
+//                 let controller = this.controller
+//
+//                 this.lookForAtTarget(LOOK_TERRAIN, controller, 2, true)
+//
+//                 let droppoints = this.lookForAtTarget(LOOK_TERRAIN, controller.pos, 2, true)
+//                 droppoints = droppoints.filter((droppoint) => (droppoint.terrain !== "wall"))
+//
+//                 droppoints = droppoints.filter((droppoint) => {
+//                     let pos = this.getPositionAt(droppoint.x, droppoint.y)
+//                     let tiles = this.lookForAtTarget(LOOK_TERRAIN, pos, 1, true)
+//                     droppoint.tiles = tiles
+//                     return tiles.filter((tile) => tile.terrain !== "wall").length === 9
+//                 })
+//
+//                 droppoints.forEach((droppoint) => {
+//                     droppoint.distance = controller.pos.getRangeTo(droppoint.x, droppoint.y)
+//                 })
+//
+//                 droppoints.sort((a, b) => a.distance - b.distance)
+//
+//                 let x = 0
+//                 let y = 0
+//                 droppoints = droppoints.filter((droppoint) => {
+//                     let pos = this.getPositionAt(x, y)
+//
+//                     if (pos.inRangeTo(droppoint.x, droppoint.y, 3)) {
+//                         return false
+//                     }
+//                     x = droppoint.x
+//                     y = droppoint.y
+//                     return true
+//                 })
+//                 droppoints.length = numberOfDroppoints
+//
+//                 droppoints.forEach((droppoint) => {
+//
+//                     droppoint.tiles.forEach((tile) => {
+//                         tile.distance = controller.pos.getRangeTo(tile.x, tile.y)
+//                     })
+//
+//                     droppoint.tiles.sort((a, b) => a.distance - b.distance)
+//
+//                     droppoint.tiles.length = upgradeSpots
+//
+//                     let x = droppoint.x
+//                     let y = droppoint.y
+//                     let pos = this.getPositionAt(x, y)
+//                     Game.map.visual.circle(pos)
+//
+//                     this.memory.upgradeSpots[`${x}x${y}`] = droppoint.tiles.reduce((accumulator, tile) => accumulator + `${tile.x}x${tile.y}s`, "")
+//                 })
+//             }
+//         }
+//
+//         return this._upgradeSpots
+//     },
+//     enumerable: false,
+//     configurable: true
+// })
+
 Object.defineProperty(Room.prototype, "upgradeSpots", {
     get: function () {
-        if (!this._upgradeSpots) {
-            if (!this.memory.upgradeSpots) {
-                this.memory.upgradeSpots = {}
-                let numberOfDroppoints = 2
-                let upgradeSpots = 5
-                let controller = this.controller
+        if (!this.memory.upgradeSpots || true) {
+            let controller = this.controller
+            let [x, y] = [controller.pos.x, controller.pos.y]
+            let coordinates = [
+                [x-2, y-2],[x-1, y-2],[x, y-2],[x+1, y-2],[x+2, y-2],
+                [x-2, y-1],                               [x+2, y-1],
+                [x-2, y+0],                               [x+2, y+0],
+                [x-2, y+1],                               [x+2, y+1],
+                [x-2, y+2],[x-1, y+2],[x, y+2],[x+1, y+2],[x+2, y+2],
+            ].map((pos) => this.getPositionAt(pos[0], pos[1]))
 
-                this.lookForAtTarget(LOOK_TERRAIN, controller, 2, true)
+            coordinates.forEach((pos) => Game.map.visual.circle(pos))
 
-                let droppoints = this.lookForAtTarget(LOOK_TERRAIN, controller.pos, 2, true)
-                droppoints = droppoints.filter((droppoint) => (droppoint.terrain !== "wall"))
+            let terrain = this.getTerrain()
+            coordinates = coordinates.filter((pos) => terrain.get(pos.x, pos.y) !== TERRAIN_MASK_WALL)
+            let spawn = this.spawns[0]
+            coordinates.sort((a, b) => a.getRangeTo(spawn) - b.getRangeTo(spawn))
 
-                droppoints = droppoints.filter((droppoint) => {
-                    let pos = this.getPositionAt(droppoint.x, droppoint.y)
-                    let tiles = this.lookForAtTarget(LOOK_TERRAIN, pos, 1, true)
-                    droppoint.tiles = tiles
-                    return tiles.filter((tile) => tile.terrain !== "wall").length === 9
-                })
+            // coordinates.forEach((pos) => {
+            //     let tiles = this.lookForAtTarget(LOOK_TERRAIN, pos, 1, true)
+            //     if (tiles.filter((tile) => tile.terrain !== "wall").length === 9) {
+            //         Game.map.visual.circle(pos, {fill: "#008000"})
+            //         coordinates = coordinates.filter((pos2) => pos.getRangeTo(pos2) > 1 || pos.getRangeTo(pos2) === 0)
+            //     }
+            // })
 
-                droppoints.forEach((droppoint) => {
-                    droppoint.distance = controller.pos.getRangeTo(droppoint.x, droppoint.y)
-                })
+            let droppoints = []
+            coordinates.forEach((pos) => {
+                let tiles = this.lookForAtTarget(LOOK_TERRAIN, pos, 1, true)
 
-                droppoints.sort((a, b) => a.distance - b.distance)
+                if (
+                    tiles.filter((tile) => tile.terrain !== "wall").length === 9
+                    &&
+                    droppoints.filter((droppoint) => tiles.filter((tile) => droppoint.getRangeTo(tile.x, tile.y) === 0).length > 0).length === 0
+                ) {
+                    Game.map.visual.circle(pos, {fill: "#008000"})
+                    droppoints.push(pos)
+                }
 
-                let x = 0
-                let y = 0
-                droppoints = droppoints.filter((droppoint) => {
-                    let pos = this.getPositionAt(x, y)
-
-                    if (pos.inRangeTo(droppoint.x, droppoint.y, 3)) {
-                        return false
-                    }
-                    x = droppoint.x
-                    y = droppoint.y
-                    return true
-                })
-                droppoints.length = numberOfDroppoints
-
-                droppoints.forEach((droppoint) => {
-
-                    droppoint.tiles.forEach((tile) => {
-                        tile.distance = controller.pos.getRangeTo(tile.x, tile.y)
-                    })
-
-                    droppoint.tiles.sort((a, b) => a.distance - b.distance)
-
-                    droppoint.tiles.length = upgradeSpots
-
-                    let x = droppoint.x
-                    let y = droppoint.y
-                    let pos = this.getPositionAt(x, y)
-                    Game.map.visual.circle(pos)
-
-                    this.memory.upgradeSpots[`${x}x${y}`] = droppoint.tiles.reduce((accumulator, tile) => accumulator + `${tile.x}x${tile.y}s`, "")
-                })
-            }
+            })
         }
-
-        return this._upgradeSpots
     },
     enumerable: false,
     configurable: true
@@ -252,7 +300,12 @@ Room.prototype.energySpot = function (creep) {
         this.accessNumber = this.energySpots.length -1
     }
 
-    return this.energySpots[this.accessNumber]
+    let energySpot = this.energySpots[this.accessNumber]
+    if (!energySpot) {
+        return undefined
+    }
+
+    return energySpot.id
 }
 
 Room.prototype.freeHarvestSpot = function (creepName) {

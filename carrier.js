@@ -103,7 +103,7 @@ module.exports = {
                 }
 
                 if (!creep.memory.energySpot) {
-                    creep.memory.energySpot = creep.room.energySpot(creep).id
+                    creep.memory.energySpot = creep.room.energySpot(creep)
                 }
                 let energySpot = Game.getObjectById(creep.memory.energySpot)
                 console.log(energySpot)
