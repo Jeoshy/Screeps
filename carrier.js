@@ -6,26 +6,37 @@ const {pull} = require("./task");
 module.exports = {
     body: [CARRY, MOVE],
     role: "carrier",
-    respawn: true,
 
-    contract: function (roomName) {
-        global.contract.call(this, roomName)
-    },
     create: function () {return global.create(this.role)},
     memory: function (room, name) {
         return {
-            role: this.role,
             task: room.freeTask(),
             mode: creepMODES.PULL,
+            role: this.role,
             roomName: room.name,
             level: room.controller.level
         }
     },
     debug: function (creep) {
-        global.debugtext(creep.memory.method, creep.pos)
+        if (creep.memory.mode === creepMODES.DEFAULT){
+            creep.memory.full ? global.debugtext("transfer", creep.pos): global.debugtext(creep.memory.method, creep.pos)
 
-        let target = Game.getObjectById(creep.memory.energySpot)
-        target ? global.debugline(creep.pos, target.pos, {lineStyle: "dashed"}) : false
+            let target = Game.getObjectById(creep.memory.energySpot)
+            target ? global.debugline(creep.pos, target.pos, {lineStyle: "dashed"}) : false
+
+        }
+
+        if (creep.memory.mode === creepMODES.PULL) {
+            global.debugtext("pulling", creep.pos)
+
+
+            if (creep.memory.task) {
+                let {contractor: pulledCreepID, attached: attached, spot: spot, range: range} = creep.memory.task
+                let pulledCreep = Game.getObjectById(pulledCreepID)
+
+                pulledCreep ? global.debugline(creep.pos, pulledCreep.pos, {color: "#0000ff"}) : false
+            }
+        }
     },
     run: function (creep) {
         if (!creep.memory.task && !creep.memory.full) {
@@ -104,6 +115,7 @@ module.exports = {
 
                     if (creep.store[RESOURCE_ENERGY] === 0) {
                         creep.memory.full = false
+                        // this.run(creep)
                     }
                     else
                     {

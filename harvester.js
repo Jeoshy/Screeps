@@ -4,21 +4,20 @@ module.exports = {
     body: [WORK, WORK],
     role: "harvester",
 
-    contract: function (roomName) {
-        global.contract.call(this, roomName)
-        this.performer = roomName
-    },
     create: function() {return global.create(this.role)},
     memory: function (room, name) {
         return {
-            role: this.role,
             harvestSpot: room.freeHarvestSpot(name),
+            role: this.role,
             roomName: room.name,
             level: room.controller.level
         }
     },
-    debug: function () {
-
+    debug: function (creep) {
+        if (creep.memory.harvestSpot) {
+            let [x, y] = creep.memory.harvestSpot.split("x")
+            global.debugline(creep.pos, creep.room.getPositionAt(x, y))
+        }
     },
     run: function (creep) {
         if (!creep.memory.harvestSpot) {
@@ -45,7 +44,5 @@ module.exports = {
         {
             creep.memory.moved = false
         }
-
-
     },
 }

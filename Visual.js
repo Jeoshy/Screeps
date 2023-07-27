@@ -8,8 +8,12 @@ let functions = [
     "text",
 ]
 functions.forEach((func) => {
-    global[`debug${func}`] = function (pos, style = {}) {
+    global[`debug${func}`] = function (pos, style = {}, backup) {
         if (global.debugMODE === DEBUG) {
+            if (func === "line") {
+                Game.map.visual[func](pos, style, backup)
+            }
+
             Game.map.visual[func](pos, style)
         }
     }

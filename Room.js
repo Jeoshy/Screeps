@@ -50,6 +50,9 @@ Object.defineProperty(Room.prototype, "spawns", {
             this._spawns = this.memory.spawns.map(s_id => Game.getObjectById(s_id))
         }
 
+        let index = 0
+        global.debugMODE ? this._spawns.forEach((spawn) => global.debugtext(`spawns[${index++}]`, spawn.pos)): false
+
         return this._spawns
     },
     enumerable: false,
@@ -141,73 +144,6 @@ Object.defineProperty(Room.prototype, "harvestSpots", {
     enumerable: false
 })
 
-// Object.defineProperty(Room.prototype, "upgradeSpots", {
-//     get: function () {
-//         if (!this._upgradeSpots) {
-//             if (!this.memory.upgradeSpots) {
-//                 this.memory.upgradeSpots = {}
-//                 let numberOfDroppoints = 2
-//                 let upgradeSpots = 5
-//                 let controller = this.controller
-//
-//                 this.lookForAtTarget(LOOK_TERRAIN, controller, 2, true)
-//
-//                 let droppoints = this.lookForAtTarget(LOOK_TERRAIN, controller.pos, 2, true)
-//                 droppoints = droppoints.filter((droppoint) => (droppoint.terrain !== "wall"))
-//
-//                 droppoints = droppoints.filter((droppoint) => {
-//                     let pos = this.getPositionAt(droppoint.x, droppoint.y)
-//                     let tiles = this.lookForAtTarget(LOOK_TERRAIN, pos, 1, true)
-//                     droppoint.tiles = tiles
-//                     return tiles.filter((tile) => tile.terrain !== "wall").length === 9
-//                 })
-//
-//                 droppoints.forEach((droppoint) => {
-//                     droppoint.distance = controller.pos.getRangeTo(droppoint.x, droppoint.y)
-//                 })
-//
-//                 droppoints.sort((a, b) => a.distance - b.distance)
-//
-//                 let x = 0
-//                 let y = 0
-//                 droppoints = droppoints.filter((droppoint) => {
-//                     let pos = this.getPositionAt(x, y)
-//
-//                     if (pos.inRangeTo(droppoint.x, droppoint.y, 3)) {
-//                         return false
-//                     }
-//                     x = droppoint.x
-//                     y = droppoint.y
-//                     return true
-//                 })
-//                 droppoints.length = numberOfDroppoints
-//
-//                 droppoints.forEach((droppoint) => {
-//
-//                     droppoint.tiles.forEach((tile) => {
-//                         tile.distance = controller.pos.getRangeTo(tile.x, tile.y)
-//                     })
-//
-//                     droppoint.tiles.sort((a, b) => a.distance - b.distance)
-//
-//                     droppoint.tiles.length = upgradeSpots
-//
-//                     let x = droppoint.x
-//                     let y = droppoint.y
-//                     let pos = this.getPositionAt(x, y)
-//                     Game.map.visual.circle(pos)
-//
-//                     this.memory.upgradeSpots[`${x}x${y}`] = droppoint.tiles.reduce((accumulator, tile) => accumulator + `${tile.x}x${tile.y}s`, "")
-//                 })
-//             }
-//         }
-//
-//         return this._upgradeSpots
-//     },
-//     enumerable: false,
-//     configurable: true
-// })
-
 Object.defineProperty(Room.prototype, "upgradeSpots", {
     get: function () {
         if (!this.memory.upgradeSpots || true) {
@@ -239,7 +175,7 @@ Object.defineProperty(Room.prototype, "upgradeSpots", {
                 if (
                     tiles.filter((tile) => tile.terrain !== "wall").length === 9
                     &&
-                    droppoints.filter((droppoint) => tiles.filter((tile) => droppoint.getRangeTo(tile.x, tile.y) === 0).length > 0).length === 0
+                    droppoints.filter((droppoint) => droppoint.getRangeTo(pos) <= 2).length === 0
                 ) {
                     global.debugcircle(pos, {fill: "#008000", opacity: 1})
                     droppoints.push(pos)
@@ -272,11 +208,15 @@ Room.prototype.energySpot = function (creep) {
         this.energySpots = this.energySpots.concat(this.find(FIND_DROPPED_RESOURCES))
     }
 
-    if (this.memory.accesNumber === undefined) {
-        this.memory.accesNumber = this.energySpots.length
+    if (this.energySpots.length === 0) {
+        return undefined
     }
 
-    if (this.ENERGYDROPPED <= this.memory.accesNumber) {
+    if (this.memory.accessNumber === undefined) {
+        this.memory.accessNumber = this.energySpots.length
+    }
+
+    if (this.ENERGYDROPPED <= this.memory.accessNumber) {
         creep.memory.method = "pickup"
     }
     else
@@ -284,51 +224,20 @@ Room.prototype.energySpot = function (creep) {
         creep.memory.method = "withdraw"
     }
 
-    if (this.memory.accesNumber > 0) {
-        this.memory.accesNumber -= 1
+    if (this.memory.accessNumber > 0) {
+        this.memory.accessNumber -= 1
     }
     else
     {
-        this.memory.accesNumber = this.energySpots.length -1
+        this.memory.accessNumber = this.energySpots.length -1
     }
 
-    let energySpot = this.energySpots[this.memory.accesNumber]
+    let energySpot = this.energySpots[this.memory.accessNumber]
     if (!energySpot) {
         return undefined
     }
 
     return energySpot.id
-}
-
-Room.prototype.freeHarvestSpot = function (creepName) {
-    for (let harvestSpot in this.harvestSpots) {
-        if (!this.harvestSpots[harvestSpot]) {
-            this.harvestSpots[harvestSpot] = creepName
-            return harvestSpot
-        }
-    }
-
-    if (!this.checkDead) {
-        this.checkDead = true
-        for (let harvestSpot in this.harvestSpots) {
-            if (!Game.creeps[this.harvestSpots[harvestSpot]]) {
-                this.harvestSpots[harvestSpot] = creepName
-                return harvestSpot
-            }
-        }
-    }
-
-    return undefined
-}
-
-Room.prototype.freeTask = function () {
-    for (let freeTask in this.memory.tasks) {
-        let task = Object.assign({}, this.memory.tasks[freeTask])
-        if (!task.performer) {
-            this.memory.tasks.pop(freeTask)
-            return task
-        }
-    }
 }
 
 Room.prototype.addTask = function (task) {
@@ -379,3 +288,37 @@ Room.prototype.checkLevel = function () {
     return false
 }
 
+Room.prototype.freeHarvestSpot = function (creepName) {
+    for (let harvestSpot in this.harvestSpots) {
+        if (!this.harvestSpots[harvestSpot]) {
+            this.harvestSpots[harvestSpot] = creepName
+            return harvestSpot
+        }
+    }
+
+    if (!this.checkDead) {
+        this.checkDead = true
+        for (let harvestSpot in this.harvestSpots) {
+            if (!Game.creeps[this.harvestSpots[harvestSpot]]) {
+                this.harvestSpots[harvestSpot] = creepName
+                return harvestSpot
+            }
+        }
+    }
+
+    return undefined
+}
+
+Room.prototype.freeUpgradeSpot = function (creepName) {
+
+}
+
+Room.prototype.freeTask = function () {
+    for (let freeTask in this.memory.tasks) {
+        let task = Object.assign({}, this.memory.tasks[freeTask])
+        if (!task.performer) {
+            this.memory.tasks.pop(freeTask)
+            return task
+        }
+    }
+}
