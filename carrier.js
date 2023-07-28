@@ -19,9 +19,12 @@ module.exports = {
     },
     debug: function (creep) {
         if (creep.memory.mode === creepMODES.DEFAULT){
-            creep.memory.full ? global.debugtext("transfer", creep.pos): global.debugtext(creep.memory.method, creep.pos)
+            global.debugtext(creep.memory.method, creep.pos)
 
-            let target = Game.getObjectById(creep.memory.energySpot)
+            let energySpot = Game.getObjectById(creep.memory.energySpot)
+            energySpot ? global.debugline(creep.pos, energySpot.pos, {lineStyle: "dashed"}) : false
+
+            let target = Game.getObjectById(creep.memory.target)
             target ? global.debugline(creep.pos, target.pos, {lineStyle: "dashed"}) : false
 
         }
@@ -105,17 +108,39 @@ module.exports = {
 
                 break;
             case creepMODES.DEFAULT:
+                console.log(creep.memory.full)
                 if (creep.memory.full) {
-                    // TODO: NEEDS TO BE DYNAMIC
-                    let target = creep.room.spawns[0]
-                    if (creep.transfer(target, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                        creep.moveTo(target)
+                    // TODO: BUGGED WITH METHOD NOT CORRECT
+                    creep.memory.method = "transfer"
+                    if (!creep.memory.target) {
+                        creep.memory.target = creep.room.energyTarget(creep)
+                    }
+
+                    let target = Game.getObjectById(creep.memory.target)
+                    if (!target) {
+                        creep.memory.target = undefined
                         break;
                     }
 
-                    if (creep.store[RESOURCE_ENERGY] === 0) {
+                    let feedback = creep[creep.memory.method](target, RESOURCE_ENERGY)
+                    if (feedback === ERR_NOT_IN_RANGE) {
+                        creep.moveTo(target)
+                        break;
+                    }
+                    if (feedback === OK) {
+                        let targetCapacity = target.store.getFreeCapacity(RESOURCE_ENERGY)
+                        let energy = creep.store[RESOURCE_ENERGY]
+
+                        creep.memory.target = undefined
+                        creep.memory.full = energy > targetCapacity
+                    }
+
+                    // TODO: CREEP.MEMORY.FULL is not correct
+
+                    if (!creep.memory.full || creep.store[RESOURCE_ENERGY] === 0) {
                         creep.memory.full = false
-                        // this.run(creep)
+                        creep.memory.target = undefined
+                        this.run(creep)
                     }
                     else
                     {
@@ -133,12 +158,32 @@ module.exports = {
                     break;
                 }
 
-                if (creep[creep.memory.method](energySpot, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+                let feedback = creep[creep.memory.method](energySpot, RESOURCE_ENERGY)
+                if (feedback === ERR_NOT_IN_RANGE) {
                     creep.moveTo(energySpot)
                     break;
                 }
 
-                if (creep.store[RESOURCE_ENERGY] > 0) {
+                if (feedback === OK) {
+                    // let capacity = creep.store.getCapacity()
+                    let energy = 0
+                    if (!energySpot.store) {
+                        energy = energySpot.amount
+                    }
+                    else
+                    {
+                        energy = energySpot.store[RESOURCE_ENERGY]
+                    }
+                    // let freeCapacity = creep.store.getFreeCapacity(RESOURCE_ENERGY)
+                    //
+                    // if (energy > capacity) {
+                    //     energy = capacity
+                    // }
+
+                    creep.memory.full = energy > 0
+                }
+
+                if (creep.memory.full) {
                     creep.memory.full = true
                     creep.memory.energySpot = undefined
                     this.run(creep)

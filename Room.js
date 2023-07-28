@@ -50,6 +50,7 @@ Object.defineProperty(Room.prototype, "queue", {
 
 Object.defineProperty(Room.prototype, "spawns", {
     get: function () {
+        // TODO: Add something when spawn is undefined
         if (!this._spawns) {
             if (!this.memory.spawns) {
                 this.memory.spawns = this.find(FIND_MY_SPAWNS).map(s => s.id)
@@ -198,6 +199,7 @@ Object.defineProperty(Room.prototype, "upgradeSpots", {
                     global.debug.call(this, 'this.tiles.forEach((dict) => Game.map.visual.circle(this.dictPos(dict), {opacity: 1}))')
 
                     this.memory.upgradeSpots[`${pos.x}x${pos.y}`] = Object.fromEntries(this.tiles.map(tile => [`${tile.x}x${tile.y}`, false]))
+                    this.memory.droppoints = droppoints.map((pos) => `${pos.x}x${pos.y}`)
                 }
 
             })
@@ -207,6 +209,18 @@ Object.defineProperty(Room.prototype, "upgradeSpots", {
     },
     enumerable: false,
     configurable: true
+})
+
+Object.defineProperty(Room.prototype, "droppoints", {
+    get: function () {
+        if (!this.memory.droppoints) {
+            this.upgradeSpots
+        }
+
+        return this.memory.droppoints
+    },
+    enumerable: true,
+    configurable: true,
 })
 
 Room.prototype.dictPos = function (dict) {
@@ -225,6 +239,7 @@ Room.prototype.lookForAtTarget = function (LOOK_CONSTANT, pos, range, asArray) {
 }
 
 Room.prototype.energySpot = function (creep) {
+    // TODO: Try to find energySpot otherwise return from container list
     if (!this.energySpots) {
         this.energySpots = []
         // for (let h in this.harvestSpots) {
@@ -267,6 +282,49 @@ Room.prototype.energySpot = function (creep) {
     }
 
     return energySpot.id
+}
+
+Room.prototype.energyTarget = function (creep) {
+    if (!this.energyTargets) {
+        this.energyTargets = []
+        let notFullSpawns = this.spawns.filter((spawn) => spawn.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
+        this.energyTargets = this.energyTargets.concat(notFullSpawns)
+        this.energyTargets = this.energyTargets.concat(notFullSpawns)
+        // this.ENERGYDROPPED = this.energyTargets.length
+        // this.energyTargets = this.energyTargets.concat(this.droppoints)
+        this.energyTargets = this.energyTargets.concat(this.find(FIND_MY_CREEPS, {
+            filter: function (creep) {
+                return creep.memory.role === "upgrader"
+            }
+        }))
+    }
+
+    if (!this.energyTargets.length === 0) {
+        return undefined
+    }
+
+    if (this.memory.accessNumber2 === undefined) {
+        this.memory.accessNumber2 = this.energyTargets.length
+    }
+
+    creep.memory.method = "transfer"
+
+    if (this.memory.accessNumber2 > 0) {
+        this.memory.accessNumber2 -= 1
+    }
+    else
+    {
+        this.memory.accessNumber2 = this.energyTargets.length -1
+    }
+
+    let energyTarget = this.energyTargets[this.memory.accessNumber2]
+    if (!energyTarget) {
+        return undefined
+    }
+
+    return energyTarget.id
+
+    // TODO: When target decided look whether it has capacity or not
 }
 
 Room.prototype.addTask = function (task) {
