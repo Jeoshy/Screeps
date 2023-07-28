@@ -3,6 +3,7 @@ let getContract = require("Contract")
 module.exports = {
     harvester: require("harvester"),
     carrier: require("carrier"),
+    upgrader: require("upgrader"),
     dead: function (creep) {
         console.log(`${creep.name} died`)
         let room = Game.rooms[creep.roomName]

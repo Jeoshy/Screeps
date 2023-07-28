@@ -19,12 +19,8 @@ functions.forEach((func) => {
     }
 })
 
-global.debug = function (func) {
-    return function(args) {
-        if (global.debugMODE !== DEBUG) {
-            return
-        }
-
-        return func(args)
+global.debug = function (string) {
+    if (global.debugMODE === DEBUG) {
+        eval(string)
     }
 }

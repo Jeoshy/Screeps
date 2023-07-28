@@ -34,6 +34,7 @@ Object.defineProperty(Source.prototype, "creepsHarvesting", {
     configurable: true
 })
 
+// TODO: Remove spotToSource and replace it with giving creeps directly the source
 Object.defineProperty(Source.prototype, "harvestSpots", {
     get: function () {
         if (!this.memory.harvestSpots || true) {

@@ -6,6 +6,10 @@ module.exports = {
 
     create: function() {return global.create(this.role)},
     memory: function (room, name) {
+        // TODO: Make the harvester have the memory of source
+        // let memory = creep.initializeMemory(this, room)
+        // room.freeHarvestSpot.call(memory)
+
         return {
             harvestSpot: room.freeHarvestSpot(name),
             role: this.role,

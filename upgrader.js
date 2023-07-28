@@ -9,16 +9,19 @@ module.exports = {
     create: function () {return global.create(this.role)},
     memory: function (room, name) {
         return {
+            upgradeSpot: room.freeUpgradeSpot(name),
             role: this.role,
             roomName: room.name,
             level: room.controller.level,
-            upgradeSpot: room.freeUpgradeSpot(name)
         }
     },
-    debug: function () {
-        
+    debug: function (creep) {
+        if (creep.memory.upgradeSpot) {
+            let [x, y] = creep.memory.upgradeSpot.split("x")
+            global.debugline(creep.pos, creep.room.getPositionAt(x, y))
+        }
     },
-    run: function () {
+    run: function (creep) {
         if (!creep.memory.upgradeSpot) {
             creep.memory.upgradeSpot = creep.room.freeUpgradeSpot(creep.name)
         }
