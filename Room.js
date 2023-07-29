@@ -4,33 +4,74 @@ const {harvester} = require("./creep");
 Object.defineProperty(Room.prototype, "creeps", {
     get: function () {
         let list = []
+        let check = function (roleCreep) {
+            if (!this.counts) {
+                this.counts = {}
+            }
+            if (!this.counts[roleCreep]) {
+                this.counts[roleCreep] = 0
+                // TODO: Takes in account who are alive, but not who are in the queue. Create a more elegant way
+                this.memory.queue = this.memory.queue.filter((c) => !(c[0] === roleCreep))
+            }
+
+            if (!this.oldCreeps) {
+                this.oldCreeps = {}
+            }
+            if (!this.oldCreeps[roleCreep]) {
+                this.oldCreeps[roleCreep] = this.find(FIND_MY_CREEPS, {
+                    filter: function (c) {
+                        return c.memory.role === roleCreep
+                    }
+                })
+            }
+
+            let creep = undefined
+            if (this.oldCreeps[roleCreep].length > this.counts[roleCreep]) {
+                this.oldCreeps[roleCreep][this.counts[roleCreep]].memory.level = this.memory.level
+            }
+            else
+            {
+                creep = role[roleCreep].create()
+            }
+
+            this.counts[roleCreep] += 1
+            return creep
+        }
+
         switch(this.memory.level) {
             case(1):
-                for (let dropSpot in this.upgradeSpots) {
-                    for (let _ in dropSpot) {
-                        list = list.concat([
-                            role.upgrader.create()
-                        ])
-                    }
-                }
-
-                for (let h in this.harvestSpots) {
+                console.log(Object.keys(this.harvestSpots).length)
+                _.times(Object.keys(this.harvestSpots).length, () => {
+                    console.log("action?")
                     list = list.concat([
-                        role.harvester.create(),
-                        role.carrier.create(),
+                        check.call(this, "upgrader")
                     ])
-                }
+                })
 
-                return list
+                _.times(Object.keys(this.harvestSpots).length, () => {
+                    list = list.concat([
+                        check.call(this, "harvester"),
+                        check.call(this, "carrier"),
+                        check.call(this, "carrier"),
+                    ])
+                })
+
+                return list.filter((c) => c)
             case(2):
-                for (let h in this.harvestSpots) {
-                    list.concat([
-                        role.harvester.create(),
-                        role.carrier.create(),
+                _.times(Object.keys(this.harvestSpots).length, () => {
+                    list = list.concat([
+                        check.call(this, "upgrader"),
                     ])
-                }
+                })
 
-                return list
+                _.times(Object.keys(this.harvestSpots).length, () => {
+                    list = list.concat([
+                        check.call(this, "harvester"),
+                        check.call(this, "carrier"),
+                    ])
+                })
+
+                return list.filter((c) => c)
         }
     },
     configurable: true
@@ -287,16 +328,15 @@ Room.prototype.energySpot = function (creep) {
 Room.prototype.energyTarget = function (creep) {
     if (!this.energyTargets) {
         this.energyTargets = []
-        let notFullSpawns = this.spawns.filter((spawn) => spawn.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
-        this.energyTargets = this.energyTargets.concat(notFullSpawns)
-        this.energyTargets = this.energyTargets.concat(notFullSpawns)
-        // this.ENERGYDROPPED = this.energyTargets.length
-        // this.energyTargets = this.energyTargets.concat(this.droppoints)
-        this.energyTargets = this.energyTargets.concat(this.find(FIND_MY_CREEPS, {
+        let upgraders = this.find(FIND_MY_CREEPS, {
             filter: function (creep) {
                 return creep.memory.role === "upgrader"
             }
-        }))
+        })
+        this.energyTargets = this.energyTargets.concat(upgraders)
+        let notFullSpawns = this.spawns.filter((spawn) => spawn.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
+        let N = upgraders.length / 2 + 1
+        _.times(N, () => {this.energyTargets = this.energyTargets.concat(notFullSpawns)})
     }
 
     if (!this.energyTargets.length === 0) {
@@ -377,10 +417,10 @@ Room.prototype.checkLevel = function () {
 
 Room.prototype.freeHarvestSpot = function (creepName) {
     for (let harvestSpot in this.harvestSpots) {
-        if (!this.harvestSpots[harvestSpot]) {
-            this.harvestSpots[harvestSpot] = creepName
-            return harvestSpot
-        }
+        // if (!this.harvestSpots[harvestSpot]) {
+        //     this.harvestSpots[harvestSpot] = creepName
+        //     return harvestSpot
+        // }
         if (!Game.creeps[this.harvestSpots[harvestSpot]]) {
             this.harvestSpots[harvestSpot] = creepName
             return harvestSpot
@@ -395,12 +435,12 @@ Room.prototype.freeUpgradeSpot = function (creepName) {
     for (let dropSpot in this.upgradeSpots) {
         let upgradeSpots = this.upgradeSpots[dropSpot]
         for (let upgradeSpot in upgradeSpots) {
-            if (!upgradeSpots[upgradeSpot]) {
-                console.log(upgradeSpots[upgradeSpot])
-                upgradeSpots[upgradeSpot] = creepName
-                console.log(upgradeSpots[upgradeSpot])
-                return upgradeSpot
-            }
+            // if (!upgradeSpots[upgradeSpot]) {
+            //     console.log(upgradeSpots[upgradeSpot])
+            //     upgradeSpots[upgradeSpot] = creepName
+            //     console.log(upgradeSpots[upgradeSpot])
+            //     return upgradeSpot
+            // }
             if (!Game.creeps[upgradeSpots[upgradeSpot]]) {
                 upgradeSpots[upgradeSpot] = creepName
                 return upgradeSpot
@@ -412,11 +452,16 @@ Room.prototype.freeUpgradeSpot = function (creepName) {
     return undefined
 }
 
-Room.prototype.freeTask = function () {
+Room.prototype.freeTask = function (creepName) {
     for (let freeTask in this.memory.tasks) {
-        let task = Object.assign({}, this.memory.tasks[freeTask])
-        if (!task.performer) {
-            this.memory.tasks.pop(freeTask)
+        let task = this.memory.tasks[freeTask]
+        if (!Game.getObjectById(task.contractor)) {
+            this.memory.tasks.splice(freeTask, 1)
+            continue;
+        }
+
+        if (!Game.creeps[task.performer]) {
+            task.performer = creepName
             return task
         }
     }

@@ -22,10 +22,10 @@ module.exports = {
             global.debugtext(creep.memory.method, creep.pos)
 
             let energySpot = Game.getObjectById(creep.memory.energySpot)
-            energySpot ? global.debugline(creep.pos, energySpot.pos, {lineStyle: "dashed"}) : false
+            energySpot ? global.debugline(creep.pos, energySpot.pos, {opacity: 1, color: "#008000"}) : false
 
             let target = Game.getObjectById(creep.memory.target)
-            target ? global.debugline(creep.pos, target.pos, {lineStyle: "dashed"}) : false
+            target ? global.debugline(creep.pos, target.pos, {opacity: 1, color: "#ff0000"}) : false
 
         }
 
@@ -93,6 +93,13 @@ module.exports = {
                 }
 
                 if (creep.pos.getRangeTo(pulledCreep) > 1) {
+                    // TODO: MAKE A MORE BEAUTIFUL STRING PARSER
+                    let [x, y] = spot.split("x")
+                    if (pulledCreep.pos.x === parseInt(x) && pulledCreep.pos.y === parseInt(y)) {
+                        console.log("Pulled creep is already on its place wtf")
+                        creep.done()
+                    }
+
                     creep.moveTo(pulledCreep)
                 }
                 else
@@ -108,7 +115,6 @@ module.exports = {
 
                 break;
             case creepMODES.DEFAULT:
-                console.log(creep.memory.full)
                 if (creep.memory.full) {
                     // TODO: BUGGED WITH METHOD NOT CORRECT
                     creep.memory.method = "transfer"
@@ -123,21 +129,20 @@ module.exports = {
                     }
 
                     let feedback = creep[creep.memory.method](target, RESOURCE_ENERGY)
-                    if (feedback === ERR_NOT_IN_RANGE) {
+                    if (feedback !== OK && feedback !== ERR_FULL) {
                         creep.moveTo(target)
                         break;
                     }
-                    if (feedback === OK) {
-                        let targetCapacity = target.store.getFreeCapacity(RESOURCE_ENERGY)
-                        let energy = creep.store[RESOURCE_ENERGY]
 
-                        creep.memory.target = undefined
-                        creep.memory.full = energy > targetCapacity
-                    }
+                    let targetCapacity = target.store.getFreeCapacity(RESOURCE_ENERGY)
+                    let energy = creep.store[RESOURCE_ENERGY]
+
+                    creep.memory.target = undefined
+                    creep.memory.full = energy > targetCapacity
 
                     // TODO: CREEP.MEMORY.FULL is not correct
 
-                    if (!creep.memory.full || creep.store[RESOURCE_ENERGY] === 0) {
+                    if (!creep.memory.full) {
                         creep.memory.full = false
                         creep.memory.target = undefined
                         this.run(creep)
@@ -159,30 +164,12 @@ module.exports = {
                 }
 
                 let feedback = creep[creep.memory.method](energySpot, RESOURCE_ENERGY)
-                if (feedback === ERR_NOT_IN_RANGE) {
+                if (feedback !== OK) {
                     creep.moveTo(energySpot)
                     break;
                 }
 
-                if (feedback === OK) {
-                    // let capacity = creep.store.getCapacity()
-                    let energy = 0
-                    if (!energySpot.store) {
-                        energy = energySpot.amount
-                    }
-                    else
-                    {
-                        energy = energySpot.store[RESOURCE_ENERGY]
-                    }
-                    // let freeCapacity = creep.store.getFreeCapacity(RESOURCE_ENERGY)
-                    //
-                    // if (energy > capacity) {
-                    //     energy = capacity
-                    // }
-
-                    creep.memory.full = energy > 0
-                }
-
+                creep.memory.full = energySpot.amount > 0
                 if (creep.memory.full) {
                     creep.memory.full = true
                     creep.memory.energySpot = undefined
