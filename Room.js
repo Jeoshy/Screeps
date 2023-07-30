@@ -11,7 +11,7 @@ Object.defineProperty(Room.prototype, "creeps", {
             if (!this.counts[roleCreep]) {
                 this.counts[roleCreep] = 0
                 // TODO: Takes in account who are alive, but not who are in the queue. Create a more elegant way
-                this.memory.queue = this.memory.queue.filter((c) => !(c[0] === roleCreep))
+                this.memory.queue = this.queue.filter((c) => !(c[0] === roleCreep))
             }
 
             if (!this.oldCreeps) {
@@ -52,7 +52,6 @@ Object.defineProperty(Room.prototype, "creeps", {
                     list = list.concat([
                         check.call(this, "harvester"),
                         check.call(this, "carrier"),
-                        check.call(this, "carrier"),
                     ])
                 })
 
@@ -67,6 +66,7 @@ Object.defineProperty(Room.prototype, "creeps", {
                 _.times(Object.keys(this.harvestSpots).length, () => {
                     list = list.concat([
                         check.call(this, "harvester"),
+                        check.call(this, "carrier"),
                         check.call(this, "carrier"),
                     ])
                 })
@@ -261,6 +261,84 @@ Object.defineProperty(Room.prototype, "droppoints", {
         return this.memory.droppoints
     },
     enumerable: true,
+    configurable: true,
+})
+
+Object.defineProperty(Room.prototype, "depth", {
+    get : function () {
+        if (!this._depth) {
+            if (!this.memory.depth) {
+                this.memory.depth = {}
+                let terrain = this.getTerrain()
+                let layer = 0
+                this.memory.depth[layer] = []
+
+                for(let y = 0; y < 50; y++) {
+                    for (let x = 0; x < 50; x++) {
+                        let tile = terrain.get(x, y)
+                        if (tile === TERRAIN_MASK_WALL) {
+                            this.memory.depth[layer].push(this.getPositionAt(x, y))
+                        }
+                    }
+                }
+
+                while (true) {
+                    let previousTiles = this.memory.depth[layer -1]
+                    let tiles = this.memory.depth[layer]
+                    this.memory.depth[layer + 1] = []
+                    let futureTiles = this.memory.depth[layer + 1]
+
+                    for (let tile of tiles) {
+                        let newTiles = this.lookForAtTarget(LOOK_TERRAIN, tile, 1, true)
+
+                        for (let newTile of newTiles) {
+                            let boolean1 = true
+                            let boolean2 = true
+                            let boolean3 = true
+
+                            if (newTile.x < 0 || newTile.x > 49 || newTile.y < 0 || newTile.y > 49) {
+                                continue;
+                            }
+
+                            if (previousTiles) {
+                                boolean1 = !(previousTiles.some((pos) => (newTile.x === pos.x && newTile.y === pos.y)))
+                            }
+
+                            if (tiles) {
+                                boolean2 = !(tiles.some((pos) => (newTile.x === pos.x && newTile.y === pos.y)))
+                            }
+
+                            if (futureTiles.length > 0) {
+                                boolean3 = !(futureTiles.some((pos) => (newTile.x === pos.x && newTile.y === pos.y)))
+                            }
+
+                            (boolean1 && boolean2 && boolean3) ? futureTiles.push(this.getPositionAt(newTile.x, newTile.y)) : false
+                        }
+                    }
+                    layer += 1
+
+                    if (futureTiles.length === 0) {
+                        break;
+                    }
+                }
+
+                // TODO: Roompositions to string
+
+            }
+
+
+            // TODO: String to roompositions - it doesn't do it now
+            let colors = ['#40004b','#762a83','#9970ab','#c2a5cf','#e7d4e8','#f7f7f7','#d9f0d3','#a6dba0','#5aae61','#1b7837','#00441b']
+            colors = ['#ffffff','#f0f0f0','#d9d9d9','#bdbdbd','#969696','#737373','#525252','#252525','#000000', '#000000'].reverse()
+            this._depth = {}
+            for (let layer in this.memory.depth) {
+                let tiles = this.memory.depth[layer].map((tile) => this.getPositionAt(tile.x, tile.y))
+                // tiles.forEach((tile) => global.debugtext(layer, tile, {color: colors[layer]}))
+                tiles.forEach((tile) => global.debugrect(tile, 1, 1, {fill: colors[layer]}))
+            }
+        }
+    },
+    enumerable: false,
     configurable: true,
 })
 
