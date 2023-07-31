@@ -20,7 +20,7 @@ module.exports = {
     debug: function (creep) {
         if (creep.memory.harvestSpot) {
             let [x, y] = creep.memory.harvestSpot.split("x")
-            global.debugline(creep.pos, creep.room.getPositionAt(x, y))
+            creep.room.debugline(creep.pos, creep.room.getPositionAt(x, y))
         }
     },
     run: function (creep) {

@@ -18,7 +18,7 @@ module.exports = {
     debug: function (creep) {
         if (creep.memory.upgradeSpot) {
             let [x, y] = creep.memory.upgradeSpot.split("x")
-            global.debugline(creep.pos, creep.room.getPositionAt(x, y))
+            creep.room.debugline(creep.pos, creep.room.getPositionAt(x, y))
         }
     },
     run: function (creep) {

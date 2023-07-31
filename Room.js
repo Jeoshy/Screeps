@@ -1,5 +1,6 @@
 var role = require("creep")
 const {harvester} = require("./creep");
+const {DEBUG} = require("./constants");
 
 Object.defineProperty(Room.prototype, "creeps", {
     get: function () {
@@ -40,9 +41,7 @@ Object.defineProperty(Room.prototype, "creeps", {
 
         switch(this.memory.level) {
             case(1):
-                console.log(Object.keys(this.harvestSpots).length)
                 _.times(Object.keys(this.harvestSpots).length, () => {
-                    console.log("action?")
                     list = list.concat([
                         check.call(this, "upgrader")
                     ])
@@ -101,7 +100,7 @@ Object.defineProperty(Room.prototype, "spawns", {
         }
 
         let index = 0
-        global.debugMODE ? this._spawns.forEach((spawn) => global.debugtext(`spawns[${index++}]`, spawn.pos)): false
+        global.debugMODE ? this._spawns.forEach((spawn) => this.debugtext(`spawns[${index++}]`, spawn.pos)): false
 
         return this._spawns
     },
@@ -210,12 +209,12 @@ Object.defineProperty(Room.prototype, "upgradeSpots", {
                 [x-2, y+2],[x-1, y+2],[x, y+2],[x+1, y+2],[x+2, y+2],
             ].map((pos) => this.getPositionAt(pos[0], pos[1]))
 
-            global.debug.call(this, 'this.coordinates.forEach((pos) => Game.map.visual.circle(pos, {fill: "#ff0000"}))')
+            global.debug.call(this, 'this.coordinates.forEach((pos) => this.debugcircle(pos, {fill: "#ff0000"}))')
 
             let terrain = this.getTerrain()
             this.coordinates = this.coordinates.filter((pos) => terrain.get(pos.x, pos.y) !== TERRAIN_MASK_WALL)
 
-            global.debug.call(this, 'this.coordinates.forEach((pos) => Game.map.visual.circle(pos))')
+            global.debug.call(this, 'this.coordinates.forEach((pos) => this.debugcircle(pos))')
 
             let spawn = this.spawns[0]
             this.coordinates.sort((a, b) => a.getRangeTo(spawn) - b.getRangeTo(spawn))
@@ -229,7 +228,7 @@ Object.defineProperty(Room.prototype, "upgradeSpots", {
                     &&
                     droppoints.filter((droppoint) => droppoint.getRangeTo(pos) <= 2).length === 0
                 ) {
-                    global.debugcircle(pos, {fill: "#008000", opacity: 1})
+                    this.debugcircle(pos, {fill: "#008000", opacity: 1})
                     droppoints.push(pos)
 
                     // Removes the middle one
@@ -237,7 +236,7 @@ Object.defineProperty(Room.prototype, "upgradeSpots", {
                     this.tiles.sort((a, b) => this.dictPos(b).getRangeTo(spawn) - this.dictPos(a).getRangeTo(spawn))
                     this.tiles.length = 5
 
-                    global.debug.call(this, 'this.tiles.forEach((dict) => Game.map.visual.circle(this.dictPos(dict), {opacity: 1}))')
+                    global.debug.call(this, 'this.tiles.forEach((dict) => this.debugcircle(this.dictPos(dict), {opacity: 1}))')
 
                     this.memory.upgradeSpots[`${pos.x}x${pos.y}`] = Object.fromEntries(this.tiles.map(tile => [`${tile.x}x${tile.y}`, false]))
                     this.memory.droppoints = droppoints.map((pos) => `${pos.x}x${pos.y}`)
@@ -268,79 +267,205 @@ Object.defineProperty(Room.prototype, "depth", {
     get : function () {
         if (!this._depth) {
             if (!this.memory.depth) {
-                this.memory.depth = {}
-                let terrain = this.getTerrain()
-                let layer = 0
-                this.memory.depth[layer] = []
+                this.memory.depth = this.createDepthCostMatrix()
+            }
 
+            let matrix = PathFinder.CostMatrix.deserialize(this.memory.depth)
+            if (global.debugMODE){
+                let visual = new RoomVisual(this.name)
+                let colors = ['#40004b','#762a83','#9970ab','#c2a5cf','#e7d4e8','#f7f7f7','#d9f0d3','#a6dba0','#5aae61','#1b7837','#00441b']
+                colors = ['#ffffff','#f0f0f0','#d9d9d9','#bdbdbd','#969696','#737373','#525252','#252525','#000000', '#000000'].reverse()
                 for(let y = 0; y < 50; y++) {
                     for (let x = 0; x < 50; x++) {
-                        let tile = terrain.get(x, y)
-                        if (tile === TERRAIN_MASK_WALL) {
-                            this.memory.depth[layer].push(this.getPositionAt(x, y))
-                        }
+                        let tile = this.getPositionAt(x, y)
+                        let weight = matrix.get(x, y)
+                        this.debugcircle(tile, {fill: colors[weight]})
+                        // this.debugtext(weight, tile, {color: colors[weight]})
                     }
                 }
-
-                while (true) {
-                    let previousTiles = this.memory.depth[layer -1]
-                    let tiles = this.memory.depth[layer]
-                    this.memory.depth[layer + 1] = []
-                    let futureTiles = this.memory.depth[layer + 1]
-
-                    for (let tile of tiles) {
-                        let newTiles = this.lookForAtTarget(LOOK_TERRAIN, tile, 1, true)
-
-                        for (let newTile of newTiles) {
-                            let boolean1 = true
-                            let boolean2 = true
-                            let boolean3 = true
-
-                            if (newTile.x < 0 || newTile.x > 49 || newTile.y < 0 || newTile.y > 49) {
-                                continue;
-                            }
-
-                            if (previousTiles) {
-                                boolean1 = !(previousTiles.some((pos) => (newTile.x === pos.x && newTile.y === pos.y)))
-                            }
-
-                            if (tiles) {
-                                boolean2 = !(tiles.some((pos) => (newTile.x === pos.x && newTile.y === pos.y)))
-                            }
-
-                            if (futureTiles.length > 0) {
-                                boolean3 = !(futureTiles.some((pos) => (newTile.x === pos.x && newTile.y === pos.y)))
-                            }
-
-                            (boolean1 && boolean2 && boolean3) ? futureTiles.push(this.getPositionAt(newTile.x, newTile.y)) : false
-                        }
-                    }
-                    layer += 1
-
-                    if (futureTiles.length === 0) {
-                        break;
-                    }
-                }
-
-                // TODO: Roompositions to string
-
             }
 
-
-            // TODO: String to roompositions - it doesn't do it now
-            let colors = ['#40004b','#762a83','#9970ab','#c2a5cf','#e7d4e8','#f7f7f7','#d9f0d3','#a6dba0','#5aae61','#1b7837','#00441b']
-            colors = ['#ffffff','#f0f0f0','#d9d9d9','#bdbdbd','#969696','#737373','#525252','#252525','#000000', '#000000'].reverse()
-            this._depth = {}
-            for (let layer in this.memory.depth) {
-                let tiles = this.memory.depth[layer].map((tile) => this.getPositionAt(tile.x, tile.y))
-                // tiles.forEach((tile) => global.debugtext(layer, tile, {color: colors[layer]}))
-                tiles.forEach((tile) => global.debugrect(tile, 1, 1, {fill: colors[layer]}))
-            }
+            this._depth = matrix
         }
+
+        return this._depth
     },
     enumerable: false,
     configurable: true,
 })
+
+let functions = [
+    "line",
+    "circle",
+    "rect",
+    "poly",
+    "text",
+]
+functions.forEach((func) => {
+    Room.prototype[`debug${func}`] = function () {
+        if (global.debugMODE === DEBUG) {
+            this.visual[func].apply(this, arguments)
+        }
+    }
+})
+
+Room.prototype.createDepthLayers = function () {
+    let terrain = this.getTerrain()
+    let layer = 0
+    let depth = {}
+    depth[layer] = []
+
+    for(let y = 0; y < 50; y++) {
+        for (let x = 0; x < 50; x++) {
+            let tile = terrain.get(x, y)
+            if (tile === TERRAIN_MASK_WALL) {
+                depth[layer].push(this.getPositionAt(x, y))
+            }
+        }
+    }
+
+    while (true) {
+        let previousTiles = depth[layer -1]
+        let tiles = depth[layer]
+        depth[layer + 1] = []
+        let futureTiles = depth[layer + 1]
+
+        for (let tile of tiles) {
+            let newTiles = this.lookForAtTarget(LOOK_TERRAIN, tile, 1, true)
+
+            for (let newTile of newTiles) {
+                let boolean1 = true
+                let boolean2 = true
+                let boolean3 = true
+
+                if (newTile.x < 0 || newTile.x > 49 || newTile.y < 0 || newTile.y > 49) {
+                    continue;
+                }
+
+                if (previousTiles) {
+                    boolean1 = !(previousTiles.some((pos) => (newTile.x === pos.x && newTile.y === pos.y)))
+                }
+
+                if (tiles) {
+                    boolean2 = !(tiles.some((pos) => (newTile.x === pos.x && newTile.y === pos.y)))
+                }
+
+                if (futureTiles.length > 0) {
+                    boolean3 = !(futureTiles.some((pos) => (newTile.x === pos.x && newTile.y === pos.y)))
+                }
+
+                (boolean1 && boolean2 && boolean3) ? futureTiles.push(this.getPositionAt(newTile.x, newTile.y)) : false
+            }
+        }
+        layer += 1
+
+        if (futureTiles.length === 0) {
+            break;
+        }
+    }
+
+    return depth
+}
+
+// 15 times cheaper than createDepthLayers
+Room.prototype.createDepthCostMatrix = function () {
+    let matrix = new PathFinder.CostMatrix
+    let terrain = this.getTerrain()
+    let fudge = []
+    let initialValue = 0
+
+    for(let y = 0; y < 50; y++) {
+        for (let x = 0; x < 50; x++) {
+            let tile = terrain.get(x, y)
+            let pos = this.getPositionAt(x, y)
+            if (tile === TERRAIN_MASK_WALL) {
+                matrix.set(x, y, initialValue)
+                continue;
+            }
+            matrix.set(x, y, 99)
+            fudge.push(pos)
+        }
+    }
+
+    let pos = this.getPositionAt(0, 0)
+    let near = this.positionsInRange(pos, 1)
+
+    let iter = 0
+    let maxIter = 0
+    // ALWAYS WORKS
+    // while (fudge.length > 0 && iter <= maxIter) {
+    //     for (let index in fudge) {
+    //         let tile = fudge[index]
+    //         let near = this.positionsInRange(tile, 1)
+    //         let weights = near.map((t) => matrix.get(t.x, t.y))
+    //         let lowestWeight = weights.sort((a, b) => a - b)[0]
+    //         let currentValue = matrix.get(tile.x, tile.y)
+    //
+    //         if (lowestWeight < currentValue) {
+    //             matrix.set(tile.x, tile.y, lowestWeight + 1)
+    //             if (currentValue > maxIter) {
+    //                 maxIter = currentValue
+    //             }
+    //         }
+    //         else
+    //         {
+    //             fudge.splice(index, 1)
+    //         }
+    //     }
+    //     iter += 1
+    // }
+
+    // NOT SURE IF THIS ONE ALWAYS WORKS
+    while (fudge.length > 0 && iter <= maxIter) {
+        for (let index in fudge) {
+            let tile = fudge[index]
+            let near = this.positionsInRange(tile, 1)
+            let weights = near.map((t) => matrix.get(t.x, t.y))
+            let lowestWeight = weights.sort((a, b) => a - b)[0]
+            let currentValue = matrix.get(tile.x, tile.y)
+
+            if (lowestWeight < currentValue) {
+                matrix.set(tile.x, tile.y, lowestWeight + 1)
+                maxIter = lowestWeight + 1
+            }
+        }
+        fudge.reverse()
+        iter += 1
+    }
+
+    return matrix.serialize()
+
+}
+
+Room.prototype.createDepthCostMatrix2 = function () {
+    let matrix = new PathFinder.CostMatrix
+    let terrain = this.getTerrain()
+    let initialValue = 0
+    let walls = []
+    let fudge = []
+
+    for(let y = 0; y < 50; y++) {
+        for (let x = 0; x < 50; x++) {
+            let tile = terrain.get(x, y)
+            let pos = this.getPositionAt(x, y)
+            if (tile === TERRAIN_MASK_WALL) {
+                matrix.set(x, y, initialValue)
+                walls.push(pos)
+                continue;
+            }
+            fudge.push(pos)
+        }
+    }
+
+    for (let index in fudge) {
+        let tile = fudge[index]
+        let distances = walls.map((w) => w.getRangeTo(tile))
+        let lowestDistance = distances.sort((a, b) => a - b)[0]
+        matrix.set(tile.x, tile.y, lowestDistance)
+    }
+
+    return matrix.serialize()
+}
 
 Room.prototype.dictPos = function (dict) {
     if (dict.x !== undefined && dict.y !== undefined) {
@@ -348,6 +473,36 @@ Room.prototype.dictPos = function (dict) {
     }
 
     return undefined
+}
+
+Room.prototype.positionsInRange = function (pos, range) {
+    if (pos.x < 0) {
+        raise(`Error: cannot be lower than 0 - x: ${pos.x}`)
+    }
+    if (pos.y < 0) {
+        raise(`Error: cannot be lower than 0 - y: ${pos.x}`)
+    }
+    if (pos.x > 49) {
+        raise(`Error: cannot be bigger than 49 - x: ${pos.x}`)
+    }
+    if (pos.y > 49) {
+        raise(`Error: cannot be bigger than 49 - y: ${pos.x}`)
+    }
+
+    let positions = []
+    for (let x = range * -1; x <= range; x++) {
+        for (let y = range * -1; y <= range; y++) {
+            let offsetX = pos.x + x
+            let offsetY = pos.y + y
+            if (offsetX < 0 || offsetX > 49 || offsetY < 0 || offsetY > 49) {
+                continue;
+            }
+
+            positions.push(this.getPositionAt(offsetX, offsetY))
+        }
+    }
+
+    return positions
 }
 
 Room.prototype.lookForAtTarget = function (LOOK_CONSTANT, pos, range, asArray) {

@@ -19,25 +19,25 @@ module.exports = {
     },
     debug: function (creep) {
         if (creep.memory.mode === creepMODES.DEFAULT){
-            global.debugtext(creep.memory.method, creep.pos)
+            creep.room.debugtext(creep.memory.method, creep.pos)
 
             let energySpot = Game.getObjectById(creep.memory.energySpot)
-            energySpot ? global.debugline(creep.pos, energySpot.pos, {opacity: 1, color: "#008000"}) : false
+            energySpot ? creep.room.debugline(creep.pos, energySpot.pos, {opacity: 1, color: "#008000"}) : false
 
             let target = Game.getObjectById(creep.memory.target)
-            target ? global.debugline(creep.pos, target.pos, {opacity: 1, color: "#ff0000"}) : false
+            target ? creep.room.debugline(creep.pos, target.pos, {opacity: 1, color: "#ff0000"}) : false
 
         }
 
         if (creep.memory.mode === creepMODES.PULL) {
-            global.debugtext("pulling", creep.pos)
+            creep.room.debugtext("pulling", creep.pos)
 
 
             if (creep.memory.task) {
                 let {contractor: pulledCreepID, attached: attached, spot: spot, range: range} = creep.memory.task
                 let pulledCreep = Game.getObjectById(pulledCreepID)
 
-                pulledCreep ? global.debugline(creep.pos, pulledCreep.pos, {color: "#0000ff"}) : false
+                pulledCreep ? creep.room.debugline(creep.pos, pulledCreep.pos, {color: "#0000ff"}) : false
             }
         }
     },
