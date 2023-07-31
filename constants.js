@@ -1,7 +1,13 @@
 module.exports = {
-    creepMODES: {
-        DEFAULT: 0,
-        PULL: 1
+    taskTYPES: {
+        DEFAULT: "default",
+        PULL: "pull",
+        BUILD: "build",
+    },
+    creepROLES: {
+        HARVESTER: "harvester",
+        CARRIER: "carrier",
+        UPGRADER: "upgrader",
     },
     creepMETHODS: {
         WITHDRAW: "withdraw",

@@ -1,8 +1,9 @@
 let task = require("task")
+const {creepROLES, taskTYPES} = require("./constants");
 
 module.exports = {
     body: [WORK, WORK],
-    role: "harvester",
+    role: creepROLES.HARVESTER,
 
     create: function() {return global.create(this.role)},
     memory: function (room, name) {
@@ -24,6 +25,7 @@ module.exports = {
         }
     },
     run: function (creep) {
+        // TODO: Transform this into default task harvest
         if (!creep.memory.harvestSpot) {
             creep.memory.harvestSpot = creep.room.freeHarvestSpot(creep.name)
         }
@@ -39,14 +41,7 @@ module.exports = {
         }
 
         let [x, y] = creep.memory.harvestSpot.split("x")
-
-        if (x !== creep.pos.x && y !== creep.pos.y) {
-            creep.room.addTask(new task.pull(creep.id, creep.memory.harvestSpot, 0))
-            creep.memory.moved = true
-        }
-        else
-        {
-            creep.memory.moved = false
-        }
+        creep.room.addTask(taskTYPES.PULL, [creep.id, creep.memory.harvestSpot, 0])
+        creep.memory.moved = true
     },
 }

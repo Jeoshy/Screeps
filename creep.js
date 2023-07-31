@@ -1,22 +1,30 @@
 let getContract = require("Contract")
+const {creepROLES} = require("./constants");
+
 
 module.exports = {
-    harvester: require("harvester"),
-    carrier: require("carrier"),
-    upgrader: require("upgrader"),
-    dead: function (creep) {
-        console.log(`${creep.name} died`)
-        let room = Game.rooms[creep.roomName]
+    [creepROLES.HARVESTER]: require("harvester"),
+    [creepROLES.CARRIER]: require("carrier"),
+    [creepROLES.UPGRADER]: require("upgrader"),
+    dead: function (creepMemory) {
+        let name = creepMemory.name
+        let role = creepMemory.role
+        let level = creepMemory.level
+        let room = Game.rooms[creepMemory.roomName]
+
+        console.log(`${name} died`)
 
         if (!room) {
             return OK
         }
 
-        if (room.controller.level === creep.level) {
+        if (room.controller.level === level) {
             room.requestCreeps([
-                this[creep.role].create()
+                this[role].create()
             ])
         }
+
+        delete Memory.creeps[name]
 
         return OK
     }
@@ -37,16 +45,18 @@ Object.defineProperty(Creep.prototype, "role", {
     configurable: true
 })
 
-Creep.prototype.registerSource = function (sourceID) {
-    Game.getObjectById(sourceID).registerCreep(this.id)
-}
-
-Creep.prototype.removeSource = function (sourceID) {
-    Game.getObjectById(sourceID).removeCreep(this.id)
-}
-
 Creep.prototype.done = function () {
     console.log(`${this.name} finished its task`)
+
+    this.room.removeTask(this.memory.task.id)
+
     this.memory.task = undefined
 }
 
+// Creep.prototype.registerSource = function (sourceID) {
+//     Game.getObjectById(sourceID).registerCreep(this.id)
+// }
+//
+// Creep.prototype.removeSource = function (sourceID) {
+//     Game.getObjectById(sourceID).removeCreep(this.id)
+// }

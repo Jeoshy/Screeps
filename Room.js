@@ -1,6 +1,7 @@
 var role = require("creep")
+let task = require("task")
 const {harvester} = require("./creep");
-const {DEBUG} = require("./constants");
+const {DEBUG, taskTYPES} = require("./constants");
 
 Object.defineProperty(Room.prototype, "creeps", {
     get: function () {
@@ -126,6 +127,19 @@ Object.defineProperty(Room.prototype, 'sources', {
     enumerable: false,
     configurable: true
 });
+
+Object.defineProperty(Room.prototype, "tasks", {
+    get: function () {
+        if (!this.memory.tasks) {
+            this.memory.tasks = {}
+            this.memory.taskId = 0
+        }
+
+        return this.memory.tasks
+    },
+    enumerable: false,
+    configurable: true,
+})
 
 Object.defineProperty(Room.prototype, "harvestSpotOptimizer", {
     get: function () {
@@ -294,6 +308,18 @@ Object.defineProperty(Room.prototype, "depth", {
     configurable: true,
 })
 
+Object.defineProperty(Room.prototype, "constructionSites", {
+    get: function () {
+        if (!this.memory.constructionSites) {
+            this.memory.constructionSites = {}
+        }
+
+        return this.memory.constructionSites
+    },
+    enumerable: false,
+    configurable: true
+})
+
 let functions = [
     "line",
     "circle",
@@ -308,64 +334,6 @@ functions.forEach((func) => {
         }
     }
 })
-
-Room.prototype.createDepthLayers = function () {
-    let terrain = this.getTerrain()
-    let layer = 0
-    let depth = {}
-    depth[layer] = []
-
-    for(let y = 0; y < 50; y++) {
-        for (let x = 0; x < 50; x++) {
-            let tile = terrain.get(x, y)
-            if (tile === TERRAIN_MASK_WALL) {
-                depth[layer].push(this.getPositionAt(x, y))
-            }
-        }
-    }
-
-    while (true) {
-        let previousTiles = depth[layer -1]
-        let tiles = depth[layer]
-        depth[layer + 1] = []
-        let futureTiles = depth[layer + 1]
-
-        for (let tile of tiles) {
-            let newTiles = this.lookForAtTarget(LOOK_TERRAIN, tile, 1, true)
-
-            for (let newTile of newTiles) {
-                let boolean1 = true
-                let boolean2 = true
-                let boolean3 = true
-
-                if (newTile.x < 0 || newTile.x > 49 || newTile.y < 0 || newTile.y > 49) {
-                    continue;
-                }
-
-                if (previousTiles) {
-                    boolean1 = !(previousTiles.some((pos) => (newTile.x === pos.x && newTile.y === pos.y)))
-                }
-
-                if (tiles) {
-                    boolean2 = !(tiles.some((pos) => (newTile.x === pos.x && newTile.y === pos.y)))
-                }
-
-                if (futureTiles.length > 0) {
-                    boolean3 = !(futureTiles.some((pos) => (newTile.x === pos.x && newTile.y === pos.y)))
-                }
-
-                (boolean1 && boolean2 && boolean3) ? futureTiles.push(this.getPositionAt(newTile.x, newTile.y)) : false
-            }
-        }
-        layer += 1
-
-        if (futureTiles.length === 0) {
-            break;
-        }
-    }
-
-    return depth
-}
 
 // 15 times cheaper than createDepthLayers
 Room.prototype.createDepthCostMatrix = function () {
@@ -390,9 +358,10 @@ Room.prototype.createDepthCostMatrix = function () {
     let pos = this.getPositionAt(0, 0)
     let near = this.positionsInRange(pos, 1)
 
-    let iter = 0
-    let maxIter = 0
+
     // ALWAYS WORKS
+    // let iter = 0
+    // let maxIter = 2
     // while (fudge.length > 0 && iter <= maxIter) {
     //     for (let index in fudge) {
     //         let tile = fudge[index]
@@ -416,7 +385,9 @@ Room.prototype.createDepthCostMatrix = function () {
     // }
 
     // NOT SURE IF THIS ONE ALWAYS WORKS
-    while (fudge.length > 0 && iter <= maxIter) {
+    let iter = 0
+    let maxIter = 2
+    while (iter < maxIter) {
         for (let index in fudge) {
             let tile = fudge[index]
             let near = this.positionsInRange(tile, 1)
@@ -435,36 +406,6 @@ Room.prototype.createDepthCostMatrix = function () {
 
     return matrix.serialize()
 
-}
-
-Room.prototype.createDepthCostMatrix2 = function () {
-    let matrix = new PathFinder.CostMatrix
-    let terrain = this.getTerrain()
-    let initialValue = 0
-    let walls = []
-    let fudge = []
-
-    for(let y = 0; y < 50; y++) {
-        for (let x = 0; x < 50; x++) {
-            let tile = terrain.get(x, y)
-            let pos = this.getPositionAt(x, y)
-            if (tile === TERRAIN_MASK_WALL) {
-                matrix.set(x, y, initialValue)
-                walls.push(pos)
-                continue;
-            }
-            fudge.push(pos)
-        }
-    }
-
-    for (let index in fudge) {
-        let tile = fudge[index]
-        let distances = walls.map((w) => w.getRangeTo(tile))
-        let lowestDistance = distances.sort((a, b) => a - b)[0]
-        matrix.set(tile.x, tile.y, lowestDistance)
-    }
-
-    return matrix.serialize()
 }
 
 Room.prototype.dictPos = function (dict) {
@@ -510,6 +451,18 @@ Room.prototype.lookForAtTarget = function (LOOK_CONSTANT, pos, range, asArray) {
     let y = pos.y
 
     return this.lookForAtArea(LOOK_CONSTANT, y - range, x - range, y + range, x + range, asArray)
+}
+
+Room.prototype.whatToBuild = function () {
+    let constructionsSites = this.find(FIND_CONSTRUCTION_SITES)
+
+    constructionsSites.forEach((c) => {
+        if (!this.constructionSites[c.id]) {
+            this.constructionSites[c.id] = true
+            // TODO: Only a max of 2 build tasks can be active
+            this.addTask(taskTYPES.BUILD, [c.id, 3])
+        }
+    })
 }
 
 Room.prototype.energySpot = function (creep) {
@@ -561,6 +514,7 @@ Room.prototype.energySpot = function (creep) {
 Room.prototype.energyTarget = function (creep) {
     if (!this.energyTargets) {
         this.energyTargets = []
+        // TODO: Every creep should have a weight that determines how many times it should be added
         let upgraders = this.find(FIND_MY_CREEPS, {
             filter: function (creep) {
                 return creep.memory.role === "upgrader"
@@ -600,22 +554,9 @@ Room.prototype.energyTarget = function (creep) {
     // TODO: When target decided look whether it has capacity or not
 }
 
-Room.prototype.addTask = function (task) {
-    if (!this.memory.tasks) {
-        this.memory.tasks = []
-    }
-
-    this.memory.tasks.push(task)
-}
-
-Room.prototype.addContract = function (contract) {
-    if (!Memory.contracts) {
-        Memory.contracts = {}
-        Memory.contractTracker = 0
-    }
-
-    Memory.contractTracker += 1
-    Memory.contracts[Memory.contractTracker] = contract
+Room.prototype.addTask = function (taskType, args) {
+    this.tasks[this.memory.taskId] = task[taskType].create.apply({}, args)
+    this.memory.taskId++
 }
 
 Room.prototype.getCreep = function () {
@@ -628,6 +569,15 @@ Room.prototype.getCreep = function () {
 Room.prototype.removeLastCreep = function () {
     // Pop the last one
     this.memory.queue.pop()
+}
+
+Room.prototype.removeTask = function (taskId) {
+    let task = this.tasks[taskId]
+
+    if (task) {
+        delete this.tasks[taskId]
+    }
+
 }
 
 Room.prototype.requestCreeps = function (creepArray) {
@@ -650,10 +600,6 @@ Room.prototype.checkLevel = function () {
 
 Room.prototype.freeHarvestSpot = function (creepName) {
     for (let harvestSpot in this.harvestSpots) {
-        // if (!this.harvestSpots[harvestSpot]) {
-        //     this.harvestSpots[harvestSpot] = creepName
-        //     return harvestSpot
-        // }
         if (!Game.creeps[this.harvestSpots[harvestSpot]]) {
             this.harvestSpots[harvestSpot] = creepName
             return harvestSpot
@@ -668,12 +614,6 @@ Room.prototype.freeUpgradeSpot = function (creepName) {
     for (let dropSpot in this.upgradeSpots) {
         let upgradeSpots = this.upgradeSpots[dropSpot]
         for (let upgradeSpot in upgradeSpots) {
-            // if (!upgradeSpots[upgradeSpot]) {
-            //     console.log(upgradeSpots[upgradeSpot])
-            //     upgradeSpots[upgradeSpot] = creepName
-            //     console.log(upgradeSpots[upgradeSpot])
-            //     return upgradeSpot
-            // }
             if (!Game.creeps[upgradeSpots[upgradeSpot]]) {
                 upgradeSpots[upgradeSpot] = creepName
                 return upgradeSpot
@@ -685,17 +625,114 @@ Room.prototype.freeUpgradeSpot = function (creepName) {
     return undefined
 }
 
-Room.prototype.freeTask = function (creepName) {
-    for (let freeTask in this.memory.tasks) {
-        let task = this.memory.tasks[freeTask]
-        if (!Game.getObjectById(task.contractor)) {
-            this.memory.tasks.splice(freeTask, 1)
-            continue;
-        }
-
-        if (!Game.creeps[task.performer]) {
+Room.prototype.freeTask = function (creepName, role) {
+    for (let freeTask in this.tasks) {
+        let task = this.tasks[freeTask]
+        if (!Game.creeps[task.performer] && (task.role === role || task.role.includes(role))) {
             task.performer = creepName
+            task.id = freeTask
             return task
         }
     }
+
+    return undefined
 }
+
+// Room.prototype.addContract = function (contract) {
+//     if (!Memory.contracts) {
+//         Memory.contracts = {}
+//         Memory.contractTracker = 0
+//     }
+//
+//     Memory.contractTracker += 1
+//     Memory.contracts[Memory.contractTracker] = contract
+// }
+
+// Room.prototype.createDepthLayers = function () {
+//     let terrain = this.getTerrain()
+//     let layer = 0
+//     let depth = {}
+//     depth[layer] = []
+//
+//     for(let y = 0; y < 50; y++) {
+//         for (let x = 0; x < 50; x++) {
+//             let tile = terrain.get(x, y)
+//             if (tile === TERRAIN_MASK_WALL) {
+//                 depth[layer].push(this.getPositionAt(x, y))
+//             }
+//         }
+//     }
+//
+//     while (true) {
+//         let previousTiles = depth[layer -1]
+//         let tiles = depth[layer]
+//         depth[layer + 1] = []
+//         let futureTiles = depth[layer + 1]
+//
+//         for (let tile of tiles) {
+//             let newTiles = this.lookForAtTarget(LOOK_TERRAIN, tile, 1, true)
+//
+//             for (let newTile of newTiles) {
+//                 let boolean1 = true
+//                 let boolean2 = true
+//                 let boolean3 = true
+//
+//                 if (newTile.x < 0 || newTile.x > 49 || newTile.y < 0 || newTile.y > 49) {
+//                     continue;
+//                 }
+//
+//                 if (previousTiles) {
+//                     boolean1 = !(previousTiles.some((pos) => (newTile.x === pos.x && newTile.y === pos.y)))
+//                 }
+//
+//                 if (tiles) {
+//                     boolean2 = !(tiles.some((pos) => (newTile.x === pos.x && newTile.y === pos.y)))
+//                 }
+//
+//                 if (futureTiles.length > 0) {
+//                     boolean3 = !(futureTiles.some((pos) => (newTile.x === pos.x && newTile.y === pos.y)))
+//                 }
+//
+//                 (boolean1 && boolean2 && boolean3) ? futureTiles.push(this.getPositionAt(newTile.x, newTile.y)) : false
+//             }
+//         }
+//         layer += 1
+//
+//         if (futureTiles.length === 0) {
+//             break;
+//         }
+//     }
+//
+//     return depth
+// }
+
+// Room.prototype.createDepthCostMatrix2 = function () {
+//     let matrix = new PathFinder.CostMatrix
+//     let terrain = this.getTerrain()
+//     let initialValue = 0
+//     let walls = []
+//     let fudge = []
+//
+//     for(let y = 0; y < 50; y++) {
+//         for (let x = 0; x < 50; x++) {
+//             let tile = terrain.get(x, y)
+//             let pos = this.getPositionAt(x, y)
+//             if (tile === TERRAIN_MASK_WALL) {
+//                 matrix.set(x, y, initialValue)
+//                 walls.push(pos)
+//                 continue;
+//             }
+//             fudge.push(pos)
+//         }
+//     }
+//
+//     for (let index in fudge) {
+//         let tile = fudge[index]
+//         let distances = walls.map((w) => w.getRangeTo(tile))
+//         let lowestDistance = distances.sort((a, b) => a - b)[0]
+//         matrix.set(tile.x, tile.y, lowestDistance)
+//     }
+//
+//     return matrix.serialize()
+//
+// }
