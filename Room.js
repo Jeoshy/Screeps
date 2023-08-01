@@ -1,79 +1,63 @@
 var role = require("creep")
 let task = require("task")
 const {harvester} = require("./creep");
-const {DEBUG, taskTYPES} = require("./constants");
+const {DEBUG, taskTYPES, creepROLES} = require("./constants");
 
 Object.defineProperty(Room.prototype, "creeps", {
     get: function () {
         let list = []
-        let check = function (roleCreep) {
-            if (!this.counts) {
-                this.counts = {}
-            }
-            if (!this.counts[roleCreep]) {
-                this.counts[roleCreep] = 0
-                // TODO: Takes in account who are alive, but not who are in the queue. Create a more elegant way
-                this.memory.queue = this.queue.filter((c) => !(c[0] === roleCreep))
-            }
-
-            if (!this.oldCreeps) {
-                this.oldCreeps = {}
-            }
-            if (!this.oldCreeps[roleCreep]) {
-                this.oldCreeps[roleCreep] = this.find(FIND_MY_CREEPS, {
-                    filter: function (c) {
-                        return c.memory.role === roleCreep
-                    }
-                })
-            }
-
-            let creep = undefined
-            if (this.oldCreeps[roleCreep].length > this.counts[roleCreep]) {
-                this.oldCreeps[roleCreep][this.counts[roleCreep]].memory.level = this.memory.level
-            }
-            else
-            {
-                creep = role[roleCreep].create()
-            }
-
-            this.counts[roleCreep] += 1
-            return creep
-        }
+        let maxHarvester = 0
+        let maxCarrier = 0
+        let maxUpgrader = 0
 
         switch(this.memory.level) {
             case(1):
-                _.times(Object.keys(this.harvestSpots).length, () => {
+                maxHarvester = Object.keys(this.harvestSpots).length
+                maxCarrier = maxHarvester
+                maxUpgrader = maxHarvester
+
+                _.times(maxUpgrader, () => {
                     list = list.concat([
-                        check.call(this, "upgrader")
+                        creepROLES.UPGRADER
                     ])
                 })
 
-                _.times(Object.keys(this.harvestSpots).length, () => {
+                _.times(maxHarvester, () => {
                     list = list.concat([
-                        check.call(this, "harvester"),
-                        check.call(this, "carrier"),
+                        creepROLES.HARVESTER,
+                        creepROLES.CARRIER
                     ])
                 })
 
-                return list.filter((c) => c)
+                break;
             case(2):
-                _.times(Object.keys(this.harvestSpots).length, () => {
+                maxHarvester = Object.keys(this.harvestSpots).length
+                // TODO: Depends on how much energy there is in the room - it isn't now
+                maxCarrier = maxHarvester * 2
+                maxUpgrader = maxHarvester
+
+                _.times(maxUpgrader, () => {
                     list = list.concat([
-                        check.call(this, "upgrader"),
+                        creepROLES.UPGRADER
                     ])
                 })
 
-                _.times(Object.keys(this.harvestSpots).length, () => {
+                _.times(maxHarvester, () => {
                     list = list.concat([
-                        check.call(this, "harvester"),
-                        check.call(this, "carrier"),
-                        check.call(this, "carrier"),
+                        creepROLES.HARVESTER,
+                        creepROLES.CARRIER
                     ])
                 })
 
-                return list.filter((c) => c)
+                break;
         }
+
+        this.createCreepPositions(maxHarvester, creepROLES.HARVESTER)
+        this.createCreepPositions(maxCarrier, creepROLES.CARRIER)
+        this.createCreepPositions(maxUpgrader, creepROLES.UPGRADER)
+        list.forEach((l) => this.freeCreepPosition(l))
     },
+    enumerable: false,
     configurable: true
 })
 
@@ -141,6 +125,18 @@ Object.defineProperty(Room.prototype, "tasks", {
     configurable: true,
 })
 
+Object.defineProperty(Room.prototype, "positions", {
+    get: function () {
+        if (!this.memory.positions) {
+            this.memory.positions = {}
+        }
+
+        return this.memory.positions
+    },
+    enumerable: false,
+    configurable: true
+})
+
 Object.defineProperty(Room.prototype, "harvestSpotOptimizer", {
     get: function () {
         if (!this.memory.harvestSpotOptimizer) {
@@ -188,15 +184,17 @@ Object.defineProperty(Room.prototype, "harvestSpots", {
     get: function () {
         if (!this.memory.harvestSpots) {
             let harvestSpots = {}
-            this.sources.forEach((source) => {
-                let hs = source.harvestSpots
-                hs.length = 3
+            let maxHarvestSpots = 3
 
-                // TODO: FROM XXXOOO to XOXOXO
-                hs.forEach((h) => {
-                    harvestSpots[h] = false
+            for (let i = 0; i < maxHarvestSpots; i++) {
+                this.sources.forEach((source) => {
+                    let h = source.harvestSpots[i]
+                    if (h) {
+                        harvestSpots[h] = false
+                    }
+
                 })
-            })
+            }
 
             this.memory.harvestSpots = harvestSpots
         }
@@ -408,6 +406,25 @@ Room.prototype.createDepthCostMatrix = function () {
 
 }
 
+Room.prototype.createPositions = function (number, type) {
+    if (!this.positions[type]) {
+        this.positions[type] = []
+    }
+
+    let length = this.positions[type].length
+    let diff = length - number
+
+    diff > 0 ? this.positions[type].splice(number, diff) : _.times(diff * -1, () => {this.positions[type].push(false)})
+}
+
+Room.prototype.createCreepPositions = function (number, type) {
+    this.createPositions(number, type)
+}
+
+Room.prototype.createTaskPositions = function (number, taskType) {
+    this.createPositions(number, taskType)
+}
+
 Room.prototype.dictPos = function (dict) {
     if (dict.x !== undefined && dict.y !== undefined) {
         return this.getPositionAt(dict.x, dict.y)
@@ -455,14 +472,25 @@ Room.prototype.lookForAtTarget = function (LOOK_CONSTANT, pos, range, asArray) {
 
 Room.prototype.whatToBuild = function () {
     let constructionsSites = this.find(FIND_CONSTRUCTION_SITES)
+    let maxBuildTasks = 2
+    this.createTaskPositions(maxBuildTasks, taskTYPES.BUILD)
 
     constructionsSites.forEach((c) => {
         if (!this.constructionSites[c.id]) {
-            this.constructionSites[c.id] = true
-            // TODO: Only a max of 2 build tasks can be active
-            this.addTask(taskTYPES.BUILD, [c.id, 3])
+            this.constructionSites[c.id] = false
         }
     })
+
+    for (let id in this.constructionSites) {
+        if (!Game.getObjectById(id)) {
+            delete this.constructionSites[id]
+            continue;
+        }
+
+        if (!this.constructionSites[id] && this.freeBuildPosition(id)) {
+            this.constructionSites[id] = true
+        }
+    }
 }
 
 Room.prototype.energySpot = function (creep) {
@@ -512,14 +540,16 @@ Room.prototype.energySpot = function (creep) {
 }
 
 Room.prototype.energyTarget = function (creep) {
+    // TODO: Make this a data driven way, creeps can register here and buildings too
+    // TODO: Make a building register just like construction register
     if (!this.energyTargets) {
         this.energyTargets = []
-        // TODO: Every creep should have a weight that determines how many times it should be added
         let upgraders = this.find(FIND_MY_CREEPS, {
             filter: function (creep) {
-                return creep.memory.role === "upgrader"
+                return creep.memory.role === "upgrader" && creep.store.energy < 50 * creep.body.filter((b) => b.type === WORK).length
             }
         })
+        // TODO: Make it drop for those upgrading and transfer directly to those who are building
         this.energyTargets = this.energyTargets.concat(upgraders)
         let notFullSpawns = this.spawns.filter((spawn) => spawn.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
         let N = upgraders.length / 2 + 1
@@ -551,7 +581,6 @@ Room.prototype.energyTarget = function (creep) {
 
     return energyTarget.id
 
-    // TODO: When target decided look whether it has capacity or not
 }
 
 Room.prototype.addTask = function (taskType, args) {
@@ -577,15 +606,6 @@ Room.prototype.removeTask = function (taskId) {
     if (task) {
         delete this.tasks[taskId]
     }
-
-}
-
-Room.prototype.requestCreeps = function (creepArray) {
-    // Extend array
-    this.memory.queue = this.queue.concat(creepArray)
-
-    // TODO: Sort from least important to most
-
 
 }
 
@@ -625,6 +645,39 @@ Room.prototype.freeUpgradeSpot = function (creepName) {
     return undefined
 }
 
+Room.prototype.freeBuildPosition = function (newId) {
+    let taskType = taskTYPES.BUILD
+    for (let index in this.positions[taskType]) {
+        let id = this.positions[taskType][index]
+        if (!Game.getObjectById(id)) {
+            this.positions[taskType][index] = newId
+            this.addTask(taskType, [newId, 3])
+            return OK
+        }
+    }
+
+    return ERR_FULL
+}
+
+Room.prototype.freeCreepPosition = function (creepRole) {
+    if (!this.positions[creepRole]) {
+        // TODO: Maybe create better code for mercenaries
+        this.queue.push(role[creepRole].create())
+    }
+
+    for (let index in this.positions[creepRole]) {
+        let position = this.positions[creepRole][index]
+        if (!Game.creeps[position] && !this.queue.some((c) => c[1] === position)) {
+            let [creep, name] = role[creepRole].create()
+            this.positions[creepRole][index] = name
+            this.queue.push([creep, name])
+            // TODO: Sort queue from least important to most
+
+            return OK
+        }
+    }
+}
+
 Room.prototype.freeTask = function (creepName, role) {
     for (let freeTask in this.tasks) {
         let task = this.tasks[freeTask]
@@ -637,6 +690,15 @@ Room.prototype.freeTask = function (creepName, role) {
 
     return undefined
 }
+
+// Room.prototype.requestCreeps = function (creepArray) {
+//     // Extend array
+//     this.memory.queue = this.queue.concat(creepArray)
+//
+//
+//
+//
+// }
 
 // Room.prototype.addContract = function (contract) {
 //     if (!Memory.contracts) {
@@ -736,3 +798,80 @@ Room.prototype.freeTask = function (creepName, role) {
 //     return matrix.serialize()
 //
 // }
+
+// Object.defineProperty(Room.prototype, "creeps", {
+//     get: function () {
+//         let list = []
+//         // let check = function (roleCreep) {
+//         //     if (!this.counts) {
+//         //         this.counts = {}
+//         //     }
+//         //     if (!this.counts[roleCreep]) {
+//         //         this.counts[roleCreep] = 0
+//         //
+//         //         this.memory.queue = this.queue.filter((c) => !(c[0] === roleCreep))
+//         //     }
+//         //
+//         //     if (!this.oldCreeps) {
+//         //         this.oldCreeps = {}
+//         //     }
+//         //     if (!this.oldCreeps[roleCreep]) {
+//         //         this.oldCreeps[roleCreep] = this.find(FIND_MY_CREEPS, {
+//         //             filter: function (c) {
+//         //                 return c.memory.role === roleCreep
+//         //             }
+//         //         })
+//         //     }
+//         //
+//         //     let creep = undefined
+//         //     if (this.oldCreeps[roleCreep].length > this.counts[roleCreep]) {
+//         //         this.oldCreeps[roleCreep][this.counts[roleCreep]].memory.level = this.memory.level
+//         //     }
+//         //     else
+//         //     {
+//         //         creep = role[roleCreep].create()
+//         //     }
+//         //
+//         //     this.counts[roleCreep] += 1
+//         //     return creep
+//         // }
+//
+//         switch(this.memory.level) {
+//             case(1):
+//                 _.times(Object.keys(this.harvestSpots).length, () => {
+//                     list = list.concat([
+//                         check.call(this, "upgrader")
+//                     ])
+//                 })
+//
+//                 _.times(Object.keys(this.harvestSpots).length, () => {
+//                     list = list.concat([
+//                         check.call(this, "harvester"),
+//                         check.call(this, "carrier"),
+//                     ])
+//                 })
+//
+//                 return list.filter((c) => c)
+//             case(2):
+//                 _.times(Object.keys(this.harvestSpots).length, () => {
+//                     list = list.concat([
+//                         check.call(this, "upgrader"),
+//                     ])
+//                 })
+//
+//                 _.times(Object.keys(this.harvestSpots).length, () => {
+//                     list = list.concat([
+//                         check.call(this, "harvester"),
+//                         check.call(this, "carrier"),
+//                         check.call(this, "carrier"),
+//                     ])
+//                 })
+//
+//                 return list.filter((c) => c)
+//         }
+//
+//         list.forEach((l) => this.freePosition(l))
+//     },
+//     enumerable: false,
+//     configurable: true
+// })

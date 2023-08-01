@@ -18,11 +18,7 @@ module.exports = {
             return OK
         }
 
-        if (room.controller.level === level) {
-            room.requestCreeps([
-                this[role].create()
-            ])
-        }
+        room.freeCreepPosition(role)
 
         delete Memory.creeps[name]
 

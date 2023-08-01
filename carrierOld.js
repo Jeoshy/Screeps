@@ -58,13 +58,10 @@ module.exports = {
             task[creep.memory.task.type]
         }
 
-        // TODO: Make task modular, meaning it has it's own script
         switch(creep.memory.mode) {
             case creepMODES.PULL:
-                // TODO: MAKE MORE ELEGANT DROP THINGY
                 creep.drop(RESOURCE_ENERGY)
 
-                // TODO: make system for paths be stored in a string and parsed to creep
                 let {contractor: pulledCreepID, attached: attached, spot: spot, range: range} = creep.memory.task
                 let pulledCreep = Game.getObjectById(pulledCreepID)
 
@@ -98,7 +95,6 @@ module.exports = {
                 }
 
                 if (creep.pos.getRangeTo(pulledCreep) > 1) {
-                    // TODO: MAKE A MORE BEAUTIFUL STRING PARSER
                     let [x, y] = spot.split("x")
                     if (pulledCreep.pos.x === parseInt(x) && pulledCreep.pos.y === parseInt(y)) {
                         console.log("Pulled creep is already on its place wtf")

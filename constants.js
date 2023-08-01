@@ -1,4 +1,8 @@
 module.exports = {
+    roomTypes: {
+        LONGDISTANCEHARVESTING: "longdistanceharvesting",
+
+    },
     taskTYPES: {
         DEFAULT: "default",
         PULL: "pull",

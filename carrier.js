@@ -76,12 +76,8 @@ module.exports = {
 
             creep.memory.target = undefined
             creep.memory.full = energy > targetCapacity
-            console.log(energy > targetCapacity)
-
-            // TODO: CREEP.MEMORY.FULL is not correct
 
             if (!creep.memory.full) {
-                creep.memory.full = false
                 creep.memory.target = undefined
                 this.run(creep)
             }

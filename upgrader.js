@@ -28,6 +28,7 @@ module.exports = {
         }
 
         if (creep.memory.task) {
+            creep.memory.moved = false
             task[creep.memory.task.type].run(creep)
             return
         }
@@ -45,7 +46,7 @@ module.exports = {
             creep.upgradeController(creep.room.controller)
             return
 
-            // TODO: Maybe finish this script, although directly supplying to the creeps is easier to handle and less building
+            // TODO: Finish this script
             // if (creep.memory.full) {
             //     return
             // }
